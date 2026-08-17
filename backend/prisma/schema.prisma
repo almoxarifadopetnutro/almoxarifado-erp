@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Perfil {
+  ADMINISTRADOR
+  ALMOXARIFE
+}
+
+enum Categoria {
+  EPI
+  LIMPEZA
+  ESCRITORIO
+  OUTROS
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  SAIDA
+}
+
+enum AcaoRegistro {
+  CRIACAO
+  ALTERACAO
+  EXCLUSAO
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  usuario   String   @unique
+  senha     String
+  perfil    Perfil   @default(ALMOXARIFE)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movimentacoes Movimentacao[]
+
+  @@map("usuarios")
+}
+
+model Material {
+  id             String    @id @default(uuid())
+  nome           String
+  categoria      Categoria
+  unidade        String
+  estoqueAtual   Decimal   @default(0) @db.Decimal(12, 2)
+  estoqueMinimo  Decimal   @default(0) @db.Decimal(12, 2)
+  ativo          Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  movimentacoes Movimentacao[]
+
+  @@map("materiais")
+}
+
+model Movimentacao {
+  id            String            @id @default(uuid())
+  tipo          TipoMovimentacao
+  quantidade    Decimal           @db.Decimal(12, 2)
+  data          DateTime
+  fornecedor    String?
+  setorDestino  String?
+  motivo        String?
+  observacao    String?
+
+  material   Material @relation(fields: [materialId], references: [id])
+  materialId String
+
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+  usuarioId String
+
+  createdAt DateTime @default(now())
+
+  @@map("movimentacoes")
+}
+
+model Registro {
+  id          String       @id @default(uuid())
+  entidade    String
+  entidadeId  String?
+  acao        AcaoRegistro
+  detalhes    String?
+  usuarioNome String
+  createdAt   DateTime     @default(now())
+
+  @@map("registros")
+}
