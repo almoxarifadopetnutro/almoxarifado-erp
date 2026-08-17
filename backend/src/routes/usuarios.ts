@@ -97,4 +97,37 @@ router.post(
   })
 );
 
+router.delete(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    const existente = await prisma.usuario.findUnique({ where: { id: req.params.id } });
+    if (!existente) return res.status(404).json({ erro: 'Usuário não encontrado' });
+
+    if (existente.id === req.usuario!.id) {
+      return res.status(400).json({ erro: 'Você não pode excluir o próprio usuário' });
+    }
+
+    const movimentacoesVinculadas = await prisma.movimentacao.count({
+      where: { usuarioId: req.params.id },
+    });
+
+    if (movimentacoesVinculadas > 0) {
+      // usuário com histórico: inativa em vez de excluir, igual ao Material
+      await prisma.usuario.update({ where: { id: req.params.id }, data: { ativo: false } });
+    } else {
+      await prisma.usuario.delete({ where: { id: req.params.id } });
+    }
+
+    await registrar({
+      entidade: 'Usuario',
+      entidadeId: req.params.id,
+      acao: 'EXCLUSAO',
+      detalhes: `Usuário "${existente.nome}" removido`,
+      usuarioNome: req.usuario!.nome,
+    });
+
+    res.json({ mensagem: 'Usuário removido com sucesso' });
+  })
+);
+
 export default router;
