@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { Material, Movimentacao, TipoMovimentacao } from '../types';
 
 function hojeISO() {
@@ -7,6 +8,7 @@ function hojeISO() {
 }
 
 export function Movimentacoes() {
+  const { usuario } = useAuth();
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [historico, setHistorico] = useState<Movimentacao[]>([]);
   const [tipo, setTipo] = useState<TipoMovimentacao>('ENTRADA');
@@ -20,6 +22,8 @@ export function Movimentacoes() {
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState<Movimentacao | null>(null);
+  const [erroExclusao, setErroExclusao] = useState('');
 
   async function carregar() {
     const [resMateriais, resHistorico] = await Promise.all([
@@ -70,6 +74,18 @@ export function Movimentacoes() {
       setErro(err.response?.data?.erro || 'Não foi possível registrar a movimentação.');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function confirmarExclusao() {
+    if (!excluindo) return;
+    setErroExclusao('');
+    try {
+      await api.delete(`/movimentacoes/${excluindo.id}`);
+      setExcluindo(null);
+      carregar();
+    } catch (err: any) {
+      setErroExclusao(err.response?.data?.erro || 'Não foi possível excluir a movimentação.');
     }
   }
 
@@ -204,6 +220,7 @@ export function Movimentacoes() {
               <th className="py-3 px-4 font-bold">Qtd</th>
               <th className="py-3 px-4 font-bold">Detalhe</th>
               <th className="py-3 px-4 font-bold">Registrado por</th>
+              {usuario?.perfil === 'ADMINISTRADOR' && <th className="py-3 px-4 font-bold"></th>}
             </tr>
           </thead>
           <tbody>
@@ -219,11 +236,44 @@ export function Movimentacoes() {
                 <td className="py-3 px-4 font-mono text-texto">{m.quantidade}</td>
                 <td className="py-3 px-4 text-textoSuave">{m.setorDestino || m.fornecedor || '—'}</td>
                 <td className="py-3 px-4 text-textoSuave">{m.usuario.nome}</td>
+                {usuario?.perfil === 'ADMINISTRADOR' && (
+                  <td className="py-3 px-4 text-right">
+                    <button
+                      onClick={() => { setExcluindo(m); setErroExclusao(''); }}
+                      className="text-[12px] font-semibold text-alerta"
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {excluindo && (
+        <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setExcluindo(null)}>
+          <div className="bg-white rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display font-extrabold text-base text-texto mb-2">Excluir movimentação</h2>
+            <p className="text-[12.5px] text-textoSuave mb-1">
+              {excluindo.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'} de <b>{excluindo.quantidade} {excluindo.material.unidade}</b> — {excluindo.material.nome}
+            </p>
+            <p className="text-[11.5px] text-textoSuave mb-4">
+              O saldo do material será ajustado automaticamente para refletir a exclusão.
+            </p>
+            {erroExclusao && <p className="text-alerta text-[12px] font-semibold mb-3">{erroExclusao}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setExcluindo(null)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
+                Cancelar
+              </button>
+              <button onClick={confirmarExclusao} className="flex-1 bg-azul text-white rounded-lg py-2 text-[12.5px] font-bold">
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

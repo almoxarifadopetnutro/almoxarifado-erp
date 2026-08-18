@@ -103,4 +103,46 @@ router.post(
   })
 );
 
+router.delete(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    if (req.usuario!.perfil !== 'ADMINISTRADOR') {
+      return res.status(403).json({ erro: 'Apenas o Administrador pode excluir movimentações' });
+    }
+
+    const movimentacao = await prisma.movimentacao.findUnique({
+      where: { id: req.params.id },
+      include: { material: true },
+    });
+    if (!movimentacao) return res.status(404).json({ erro: 'Movimentação não encontrada' });
+
+    const estoqueAtual = Number(movimentacao.material.estoqueAtual);
+    const qtd = Number(movimentacao.quantidade);
+
+    // reverte o efeito da movimentação no saldo do material
+    const novoSaldo = movimentacao.tipo === 'ENTRADA' ? estoqueAtual - qtd : estoqueAtual + qtd;
+
+    if (novoSaldo < 0) {
+      return res.status(400).json({
+        erro: `Não é possível excluir: o saldo de "${movimentacao.material.nome}" ficaria negativo (já houve saídas desde essa entrada). Ajuste as movimentações mais recentes primeiro.`,
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.movimentacao.delete({ where: { id: req.params.id } }),
+      prisma.material.update({ where: { id: movimentacao.materialId }, data: { estoqueAtual: novoSaldo } }),
+    ]);
+
+    await registrar({
+      entidade: 'Movimentacao',
+      entidadeId: req.params.id,
+      acao: 'EXCLUSAO',
+      detalhes: `${movimentacao.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'} de ${qtd} ${movimentacao.material.unidade} — ${movimentacao.material.nome} excluída (saldo revertido)`,
+      usuarioNome: req.usuario!.nome,
+    });
+
+    res.json({ mensagem: 'Movimentação excluída e saldo ajustado com sucesso' });
+  })
+);
+
 export default router;
