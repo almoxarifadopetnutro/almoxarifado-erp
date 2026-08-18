@@ -7,7 +7,7 @@ const linkOn = 'bg-azul text-white hover:bg-azul hover:text-white';
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/materiais', label: 'Materiais' },
+  { to: '/estoque', label: 'Estoque' },
   { to: '/movimentacoes', label: 'Movimentações' },
   { to: '/relatorios', label: 'Relatórios' },
 ];

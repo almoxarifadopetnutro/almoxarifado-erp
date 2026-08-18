@@ -47,6 +47,7 @@ model Usuario {
 
 model Material {
   id             String    @id @default(uuid())
+  codigo         String?   @unique
   nome           String
   categoria      Categoria
   unidade        String

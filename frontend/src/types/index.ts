@@ -12,6 +12,7 @@ export interface Usuario {
 
 export interface Material {
   id: string;
+  codigo?: string | null;
   nome: string;
   categoria: Categoria;
   unidade: string;

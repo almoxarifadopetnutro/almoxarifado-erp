@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { asyncHandler } from '../utils/asyncHandler';
 import { autenticar, AuthRequest } from '../middleware/auth';
 import { registrar } from '../utils/registrar';
+import { gerarProximoCodigo } from '../utils/codigoMaterial';
 
 const router = Router();
 router.use(autenticar);
@@ -10,7 +11,7 @@ router.use(autenticar);
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { busca, categoria, apenasBaixo } = req.query;
+    const { busca, categoria, apenasBaixo, ordenarPor } = req.query;
 
     const materiais = await prisma.material.findMany({
       where: {
@@ -18,7 +19,7 @@ router.get(
         ...(busca ? { nome: { contains: String(busca), mode: 'insensitive' } } : {}),
         ...(categoria ? { categoria: String(categoria) as any } : {}),
       },
-      orderBy: { nome: 'asc' },
+      orderBy: ordenarPor === 'codigo' ? { codigo: 'asc' } : { nome: 'asc' },
     });
 
     const materiaisComStatus = materiais
@@ -56,8 +57,11 @@ router.post(
       return res.status(400).json({ erro: 'Nome, categoria e unidade são obrigatórios' });
     }
 
+    const codigo = await gerarProximoCodigo(categoria);
+
     const material = await prisma.material.create({
       data: {
+        codigo,
         nome,
         categoria,
         unidade,
@@ -70,7 +74,7 @@ router.post(
       entidade: 'Material',
       entidadeId: material.id,
       acao: 'CRIACAO',
-      detalhes: `Material "${material.nome}" cadastrado`,
+      detalhes: `Material "${material.nome}" cadastrado (${codigo})`,
       usuarioNome: req.usuario!.nome,
     });
 
@@ -86,9 +90,15 @@ router.put(
 
     const { nome, categoria, unidade, estoqueMinimo } = req.body;
 
+    // se a categoria mudou, o código precisa ser regerado para refletir o novo prefixo
+    let novoCodigo = existente.codigo;
+    if (categoria && categoria !== existente.categoria) {
+      novoCodigo = await gerarProximoCodigo(categoria);
+    }
+
     const material = await prisma.material.update({
       where: { id: req.params.id },
-      data: { nome, categoria, unidade, estoqueMinimo },
+      data: { nome, categoria, unidade, estoqueMinimo, codigo: novoCodigo },
     });
 
     await registrar({
