@@ -9,14 +9,18 @@ const categoriaLabel: Record<Categoria, string> = {
   OUTROS: 'Outros',
 };
 
-const categoriaCor: Record<Categoria, string> = {
-  EPI: 'bg-[#FCEBEA] text-vermelho',
-  LIMPEZA: 'bg-[#EAF3E3] text-verde',
-  ESCRITORIO: 'bg-[#FCF3D6] text-[#92720A]',
-  OUTROS: 'bg-[#EFEAE0] text-[#6B6259]',
-};
-
 const vazio = { nome: '', categoria: 'EPI' as Categoria, unidade: '', estoqueMinimo: '0', estoqueAtual: '0' };
+
+function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
+  const alvo = minimo > 0 ? minimo * 2 : atual || 1;
+  const pct = Math.min(100, Math.round((atual / alvo) * 100));
+  const baixo = atual < minimo;
+  return (
+    <div className="medidor-track w-16">
+      <div className="medidor-fill" style={{ width: `${pct}%`, backgroundColor: baixo ? '#DC2626' : '#2F6FEE' }} />
+    </div>
+  );
+}
 
 export function Materiais() {
   const [materiais, setMateriais] = useState<Material[]>([]);
@@ -87,56 +91,49 @@ export function Materiais() {
 
   return (
     <div>
-      <h1 className="text-lg font-extrabold mb-0.5">Materiais</h1>
-      <p className="text-[12.5px] text-[#6B6259] mb-4">Cadastro e saldo atual de cada item</p>
+      <h1 className="font-display text-[22px] font-extrabold text-texto mb-0.5">Materiais</h1>
+      <p className="text-[12.5px] text-textoSuave mb-5">Cadastro e saldo atual de cada item</p>
 
-      <div className="flex justify-between items-center mb-3.5">
+      <div className="flex justify-between items-center mb-4">
         <input
-          className="border border-[#E8E0D2] rounded-lg px-3 py-2 text-[12.5px] w-56"
+          className="border border-linha rounded-lg px-3.5 py-2.5 text-[12.5px] w-60 outline-none focus:border-azul focus:ring-2 focus:ring-azul/15 transition bg-white"
           placeholder="Buscar material..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && carregar()}
         />
-        <button onClick={abrirNovo} className="bg-vermelho text-white font-bold text-[12.5px] rounded-lg px-4 py-2">
+        <button onClick={abrirNovo} className="bg-azul hover:bg-[#2660D6] transition-colors text-white font-bold text-[12.5px] rounded-lg px-4 py-2.5">
           + Novo material
         </button>
       </div>
 
-      <div className="bg-white border border-[#E8E0D2] rounded-xl overflow-hidden">
+      <div className="bg-white border border-linha rounded-2xl overflow-hidden">
         <table className="w-full text-[12.8px]">
           <thead>
-            <tr className="text-left text-[10.5px] uppercase text-[#6B6259] border-b border-[#E8E0D2]">
-              <th className="py-2.5 px-3">Material</th>
-              <th className="py-2.5 px-3">Categoria</th>
-              <th className="py-2.5 px-3">Unidade</th>
-              <th className="py-2.5 px-3">Estoque atual</th>
-              <th className="py-2.5 px-3">Estoque mínimo</th>
-              <th className="py-2.5 px-3">Status</th>
-              <th className="py-2.5 px-3"></th>
+            <tr className="text-left text-[10.5px] uppercase tracking-wide text-textoSuave border-b border-linha">
+              <th className="py-3 px-4 font-bold">Material</th>
+              <th className="py-3 px-4 font-bold">Categoria</th>
+              <th className="py-3 px-4 font-bold">Unidade</th>
+              <th className="py-3 px-4 font-bold">Nível de estoque</th>
+              <th className="py-3 px-4 font-bold">Atual / Mínimo</th>
+              <th className="py-3 px-4 font-bold"></th>
             </tr>
           </thead>
           <tbody>
             {materiais.map((m) => (
-              <tr key={m.id} className="border-b border-[#E8E0D2] last:border-none">
-                <td className="py-2.5 px-3">{m.nome}</td>
-                <td className="py-2.5 px-3">
-                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${categoriaCor[m.categoria]}`}>
-                    {categoriaLabel[m.categoria]}
-                  </span>
+              <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
+                <td className="py-3 px-4 font-medium text-texto">{m.nome}</td>
+                <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.categoria]}</td>
+                <td className="py-3 px-4 text-textoSuave">{m.unidade}</td>
+                <td className="py-3 px-4">
+                  <Medidor atual={m.estoqueAtual} minimo={m.estoqueMinimo} />
                 </td>
-                <td className="py-2.5 px-3">{m.unidade}</td>
-                <td className="py-2.5 px-3 font-mono">{m.estoqueAtual}</td>
-                <td className="py-2.5 px-3 font-mono">{m.estoqueMinimo}</td>
-                <td className="py-2.5 px-3">
-                  {m.estoqueBaixo ? (
-                    <span className="text-vermelho font-bold text-[11.5px]">● Baixo</span>
-                  ) : (
-                    <span className="text-verde font-bold text-[11.5px]">● OK</span>
-                  )}
+                <td className="py-3 px-4 font-mono text-texto">
+                  {m.estoqueAtual}
+                  <span className="text-textoSuave"> / {m.estoqueMinimo}</span>
                 </td>
-                <td className="py-2.5 px-3 text-right">
-                  <button onClick={() => abrirEdicao(m)} className="text-[12px] font-semibold text-vermelho">
+                <td className="py-3 px-4 text-right">
+                  <button onClick={() => abrirEdicao(m)} className="text-[12px] font-semibold text-azul">
                     Editar
                   </button>
                 </td>
@@ -144,7 +141,7 @@ export function Materiais() {
             ))}
             {!carregando && materiais.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-4 px-3 text-center text-[#6B6259]">
+                <td colSpan={6} className="py-6 px-4 text-center text-textoSuave">
                   Nenhum material encontrado.
                 </td>
               </tr>
@@ -154,26 +151,23 @@ export function Materiais() {
       </div>
 
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setModalAberto(false)}>
-          <div
-            className="bg-white rounded-2xl p-6 w-[420px]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="font-extrabold text-base mb-4">{editando ? 'Editar material' : 'Novo material'}</h2>
+        <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setModalAberto(false)}>
+          <div className="bg-white rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display font-extrabold text-base text-texto mb-4">{editando ? 'Editar material' : 'Novo material'}</h2>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11.5px] font-bold text-[#6B6259] block mb-1">Nome</label>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Nome</label>
                 <input
-                  className="w-full border border-[#E8E0D2] rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                   value={form.nome}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 />
               </div>
               <div>
-                <label className="text-[11.5px] font-bold text-[#6B6259] block mb-1">Categoria</label>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Categoria</label>
                 <select
-                  className="w-full border border-[#E8E0D2] rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                   value={form.categoria}
                   onChange={(e) => setForm({ ...form, categoria: e.target.value as Categoria })}
                 >
@@ -185,19 +179,19 @@ export function Materiais() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11.5px] font-bold text-[#6B6259] block mb-1">Unidade</label>
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Unidade</label>
                   <input
-                    className="w-full border border-[#E8E0D2] rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                     placeholder="Un, Par, Resma..."
                     value={form.unidade}
                     onChange={(e) => setForm({ ...form, unidade: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-[11.5px] font-bold text-[#6B6259] block mb-1">Estoque mínimo</label>
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Estoque mínimo</label>
                   <input
                     type="number"
-                    className="w-full border border-[#E8E0D2] rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                     value={form.estoqueMinimo}
                     onChange={(e) => setForm({ ...form, estoqueMinimo: e.target.value })}
                   />
@@ -205,10 +199,10 @@ export function Materiais() {
               </div>
               {!editando && (
                 <div>
-                  <label className="text-[11.5px] font-bold text-[#6B6259] block mb-1">Estoque inicial</label>
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Estoque inicial</label>
                   <input
                     type="number"
-                    className="w-full border border-[#E8E0D2] rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                     value={form.estoqueAtual}
                     onChange={(e) => setForm({ ...form, estoqueAtual: e.target.value })}
                   />
@@ -216,16 +210,16 @@ export function Materiais() {
               )}
             </div>
 
-            {erro && <p className="text-vermelho text-[12px] font-semibold mt-3">{erro}</p>}
+            {erro && <p className="text-alerta text-[12px] font-semibold mt-3">{erro}</p>}
 
             <div className="flex gap-2 mt-5">
               <button
                 onClick={() => setModalAberto(false)}
-                className="flex-1 border border-[#E8E0D2] rounded-lg py-2 text-[12.5px] font-bold"
+                className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto"
               >
                 Cancelar
               </button>
-              <button onClick={salvar} className="flex-1 bg-vermelho text-white rounded-lg py-2 text-[12.5px] font-bold">
+              <button onClick={salvar} className="flex-1 bg-azul hover:bg-[#2660D6] transition-colors text-white rounded-lg py-2 text-[12.5px] font-bold">
                 Salvar
               </button>
             </div>

@@ -89,16 +89,16 @@ export function Relatorios() {
 
   return (
     <div>
-      <h1 className="text-lg font-extrabold mb-0.5">Relatórios</h1>
-      <p className="text-[12.5px] text-[#6B6259] mb-4">Histórico e consumo por período</p>
+      <h1 className="font-display text-[22px] font-extrabold text-texto mb-0.5">Relatórios</h1>
+      <p className="text-[12.5px] text-textoSuave mb-5">Histórico e consumo por período</p>
 
-      <div className="flex gap-5 mb-4 border-b border-[#E8E0D2]">
+      <div className="flex gap-6 mb-5 border-b border-linha">
         {(['movimentacoes', 'consumo', 'baixo'] as Aba[]).map((a) => (
           <span
             key={a}
             onClick={() => setAba(a)}
-            className={`pb-2.5 text-[12.5px] font-bold cursor-pointer border-b-2 ${
-              aba === a ? 'text-vermelho border-vermelho' : 'text-[#6B6259] border-transparent'
+            className={`pb-2.5 text-[12.5px] font-bold cursor-pointer border-b-2 transition-colors ${
+              aba === a ? 'text-azul border-azul' : 'text-textoSuave border-transparent hover:text-texto'
             }`}
           >
             {a === 'movimentacoes' ? 'Movimentações' : a === 'consumo' ? 'Consumo por categoria' : 'Estoque baixo'}
@@ -106,50 +106,50 @@ export function Relatorios() {
         ))}
       </div>
 
-      <div className="flex justify-between items-center mb-3.5">
+      <div className="flex justify-between items-center mb-4">
         <div className="flex gap-2 items-center text-[12.5px]">
           <input
             type="date"
-            className="border border-[#E8E0D2] rounded-lg px-2.5 py-1.5 text-[12.5px]"
+            className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] bg-white outline-none focus:border-azul"
             value={dataInicio}
             onChange={(e) => setDataInicio(e.target.value)}
           />
-          <span className="text-[#6B6259]">até</span>
+          <span className="text-textoSuave">até</span>
           <input
             type="date"
-            className="border border-[#E8E0D2] rounded-lg px-2.5 py-1.5 text-[12.5px]"
+            className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] bg-white outline-none focus:border-azul"
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
           />
-          <button onClick={carregar} className="border border-[#E8E0D2] rounded-lg px-3 py-1.5 font-bold text-[12px]">
+          <button onClick={carregar} className="border border-linha rounded-lg px-3 py-1.5 font-bold text-[12px] text-texto bg-white hover:bg-fundo">
             Filtrar
           </button>
         </div>
-        <button onClick={exportar} className="border border-[#E8E0D2] bg-white rounded-lg px-3.5 py-2 font-bold text-[12.5px]">
+        <button onClick={exportar} className="border border-linha bg-white rounded-lg px-3.5 py-2 font-bold text-[12.5px] text-texto hover:bg-fundo">
           ⤓ Exportar CSV / Excel
         </button>
       </div>
 
       {aba === 'movimentacoes' && (
-        <div className="bg-white border border-[#E8E0D2] rounded-xl overflow-hidden">
+        <div className="bg-white border border-linha rounded-2xl overflow-hidden">
           <table className="w-full text-[12.8px]">
             <thead>
-              <tr className="text-left text-[10.5px] uppercase text-[#6B6259] border-b border-[#E8E0D2]">
-                <th className="py-2.5 px-3">Data</th>
-                <th className="py-2.5 px-3">Material</th>
-                <th className="py-2.5 px-3">Categoria</th>
-                <th className="py-2.5 px-3">Tipo</th>
-                <th className="py-2.5 px-3">Qtd</th>
+              <tr className="text-left text-[10.5px] uppercase tracking-wide text-textoSuave border-b border-linha">
+                <th className="py-3 px-4 font-bold">Data</th>
+                <th className="py-3 px-4 font-bold">Material</th>
+                <th className="py-3 px-4 font-bold">Categoria</th>
+                <th className="py-3 px-4 font-bold">Tipo</th>
+                <th className="py-3 px-4 font-bold">Qtd</th>
               </tr>
             </thead>
             <tbody>
               {movimentacoes.map((m) => (
-                <tr key={m.id} className="border-b border-[#E8E0D2] last:border-none">
-                  <td className="py-2.5 px-3">{new Date(m.data).toLocaleDateString('pt-BR')}</td>
-                  <td className="py-2.5 px-3">{m.material.nome}</td>
-                  <td className="py-2.5 px-3">{categoriaLabel[m.material.categoria]}</td>
-                  <td className="py-2.5 px-3">{m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
-                  <td className="py-2.5 px-3 font-mono">{m.quantidade}</td>
+                <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
+                  <td className="py-3 px-4 text-textoSuave">{new Date(m.data).toLocaleDateString('pt-BR')}</td>
+                  <td className="py-3 px-4 font-medium text-texto">{m.material.nome}</td>
+                  <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.material.categoria]}</td>
+                  <td className="py-3 px-4 text-textoSuave">{m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
+                  <td className="py-3 px-4 font-mono text-texto">{m.quantidade}</td>
                 </tr>
               ))}
             </tbody>
@@ -158,19 +158,19 @@ export function Relatorios() {
       )}
 
       {aba === 'consumo' && (
-        <div className="bg-white border border-[#E8E0D2] rounded-xl overflow-hidden">
+        <div className="bg-white border border-linha rounded-2xl overflow-hidden">
           <table className="w-full text-[12.8px]">
             <thead>
-              <tr className="text-left text-[10.5px] uppercase text-[#6B6259] border-b border-[#E8E0D2]">
-                <th className="py-2.5 px-3">Categoria</th>
-                <th className="py-2.5 px-3">Total consumido (saídas)</th>
+              <tr className="text-left text-[10.5px] uppercase tracking-wide text-textoSuave border-b border-linha">
+                <th className="py-3 px-4 font-bold">Categoria</th>
+                <th className="py-3 px-4 font-bold">Total consumido (saídas)</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(consumoPorCategoria).map(([cat, total]) => (
-                <tr key={cat} className="border-b border-[#E8E0D2] last:border-none">
-                  <td className="py-2.5 px-3">{categoriaLabel[cat]}</td>
-                  <td className="py-2.5 px-3 font-mono">{total}</td>
+                <tr key={cat} className="border-b border-linha last:border-none hover:bg-fundo/60">
+                  <td className="py-3 px-4 font-medium text-texto">{categoriaLabel[cat]}</td>
+                  <td className="py-3 px-4 font-mono text-texto">{total}</td>
                 </tr>
               ))}
             </tbody>
@@ -179,23 +179,23 @@ export function Relatorios() {
       )}
 
       {aba === 'baixo' && (
-        <div className="bg-white border border-[#E8E0D2] rounded-xl overflow-hidden">
+        <div className="bg-white border border-linha rounded-2xl overflow-hidden">
           <table className="w-full text-[12.8px]">
             <thead>
-              <tr className="text-left text-[10.5px] uppercase text-[#6B6259] border-b border-[#E8E0D2]">
-                <th className="py-2.5 px-3">Material</th>
-                <th className="py-2.5 px-3">Categoria</th>
-                <th className="py-2.5 px-3">Estoque atual</th>
-                <th className="py-2.5 px-3">Estoque mínimo</th>
+              <tr className="text-left text-[10.5px] uppercase tracking-wide text-textoSuave border-b border-linha">
+                <th className="py-3 px-4 font-bold">Material</th>
+                <th className="py-3 px-4 font-bold">Categoria</th>
+                <th className="py-3 px-4 font-bold">Estoque atual</th>
+                <th className="py-3 px-4 font-bold">Estoque mínimo</th>
               </tr>
             </thead>
             <tbody>
               {estoqueBaixo.map((m) => (
-                <tr key={m.id} className="border-b border-[#E8E0D2] last:border-none">
-                  <td className="py-2.5 px-3">{m.nome}</td>
-                  <td className="py-2.5 px-3">{categoriaLabel[m.categoria]}</td>
-                  <td className="py-2.5 px-3 font-mono text-vermelho">{m.estoqueAtual}</td>
-                  <td className="py-2.5 px-3 font-mono">{m.estoqueMinimo}</td>
+                <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
+                  <td className="py-3 px-4 font-medium text-texto">{m.nome}</td>
+                  <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.categoria]}</td>
+                  <td className="py-3 px-4 font-mono text-alerta font-semibold">{m.estoqueAtual}</td>
+                  <td className="py-3 px-4 font-mono text-texto">{m.estoqueMinimo}</td>
                 </tr>
               ))}
             </tbody>

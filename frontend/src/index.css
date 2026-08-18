@@ -3,6 +3,23 @@
 @tailwind utilities;
 
 body {
-  @apply bg-creme text-[#2B2621];
+  @apply bg-fundo text-texto;
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+::selection {
+  background-color: #2F6FEE33;
+}
+
+/* barra de nível de estoque — elemento de assinatura visual */
+.medidor-track {
+  height: 5px;
+  border-radius: 999px;
+  background: #E1E8F0;
+  overflow: hidden;
+}
+.medidor-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
