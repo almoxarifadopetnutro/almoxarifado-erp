@@ -2,13 +2,6 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { DashboardData } from '../types';
 
-const categoriaLabel: Record<string, string> = {
-  EPI: 'EPI',
-  LIMPEZA: 'Limpeza',
-  ESCRITORIO: 'Escritório',
-  OUTROS: 'Outros',
-};
-
 function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
   const alvo = minimo > 0 ? minimo * 2 : atual || 1;
   const pct = Math.min(100, Math.round((atual / alvo) * 100));
@@ -25,6 +18,7 @@ function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
 
 export function Dashboard() {
   const [dados, setDados] = useState<DashboardData | null>(null);
+  const [mapaCategoria, setMapaCategoria] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -32,6 +26,11 @@ export function Dashboard() {
       .get('/dashboard')
       .then((res) => setDados(res.data))
       .finally(() => setCarregando(false));
+    api.get('/categorias').then((res) => {
+      const mapa: Record<string, string> = {};
+      res.data.forEach((c: { codigo: string; nome: string }) => (mapa[c.codigo] = c.nome));
+      setMapaCategoria(mapa);
+    });
   }, []);
 
   if (carregando) return <p className="text-sm text-textoSuave">Carregando...</p>;
@@ -95,7 +94,7 @@ export function Dashboard() {
               <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
                 <td className="py-3 px-4 text-textoSuave">{new Date(m.data).toLocaleDateString('pt-BR')}</td>
                 <td className="py-3 px-4 font-medium text-texto">{m.material.nome}</td>
-                <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.material.categoria]}</td>
+                <td className="py-3 px-4 text-textoSuave">{mapaCategoria[m.material.categoria] || m.material.categoria}</td>
                 <td className={`py-3 px-4 font-mono font-semibold ${m.tipo === 'ENTRADA' ? 'text-ok' : 'text-alerta'}`}>
                   {m.tipo === 'ENTRADA' ? '+' : '-'}
                   {m.quantidade}

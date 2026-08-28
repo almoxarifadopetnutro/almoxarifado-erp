@@ -1,27 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { Material, Categoria } from '../types';
+import { Material, CategoriaInfo } from '../types';
 
-const categoriaLabel: Record<Categoria, string> = {
-  EPI: 'EPI',
-  LIMPEZA: 'Limpeza',
-  ESCRITORIO: 'Escritório',
-  OUTROS: 'Outros',
-};
-
-const categoriaCodigo: Record<Categoria, string> = {
-  EPI: 'EPI',
-  LIMPEZA: 'LPZ',
-  ESCRITORIO: 'ESC',
-  OUTROS: 'OTR',
-};
-
-type AbaCategoria = 'TODOS' | Categoria;
 type OrdenarPor = 'nome' | 'codigo';
 
-const abas: AbaCategoria[] = ['TODOS', 'EPI', 'LIMPEZA', 'ESCRITORIO', 'OUTROS'];
-
-const vazio = { nome: '', categoria: 'EPI' as Categoria, unidade: '', estoqueMinimo: '0', estoqueAtual: '0' };
+const vazio = { nome: '', categoria: '', unidade: '', estoqueMinimo: '0', estoqueAtual: '0' };
+const vazioCategoria = { nome: '', codigo: '' };
 
 function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
   const alvo = minimo > 0 ? minimo * 2 : atual || 1;
@@ -36,42 +20,64 @@ function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
 
 export function Estoque() {
   const [materiais, setMateriais] = useState<Material[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaInfo[]>([]);
   const [busca, setBusca] = useState('');
-  const [aba, setAba] = useState<AbaCategoria>('TODOS');
+  const [aba, setAba] = useState<string>('TODOS');
   const [ordenarPor, setOrdenarPor] = useState<OrdenarPor>('codigo');
   const [carregando, setCarregando] = useState(true);
+
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Material | null>(null);
   const [form, setForm] = useState(vazio);
   const [erro, setErro] = useState('');
 
-  async function carregar() {
+  const [excluindo, setExcluindo] = useState<Material | null>(null);
+  const [erroExclusao, setErroExclusao] = useState('');
+
+  const [modalCategoriaAberto, setModalCategoriaAberto] = useState(false);
+  const [formCategoria, setFormCategoria] = useState(vazioCategoria);
+  const [erroCategoria, setErroCategoria] = useState('');
+
+  const mapaCategoria = categorias.reduce<Record<string, string>>((acc, c) => {
+    acc[c.codigo] = c.nome;
+    return acc;
+  }, {});
+
+  async function carregarCategorias() {
+    const { data } = await api.get('/categorias');
+    setCategorias(data);
+    if (!form.categoria && data.length > 0) setForm((f) => ({ ...f, categoria: data[0].codigo }));
+  }
+
+  async function carregarMateriais() {
     setCarregando(true);
     const { data } = await api.get('/materiais', {
-      params: {
-        ...(busca ? { busca } : {}),
-        ordenarPor,
-      },
+      params: { ...(busca ? { busca } : {}), ordenarPor },
     });
     setMateriais(data);
     setCarregando(false);
   }
 
   useEffect(() => {
-    carregar();
+    carregarCategorias();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    carregarMateriais();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordenarPor]);
 
   const materiaisFiltrados = aba === 'TODOS' ? materiais : materiais.filter((m) => m.categoria === aba);
 
-  const contagemPorCategoria = abas.reduce<Record<string, number>>((acc, a) => {
-    acc[a] = a === 'TODOS' ? materiais.length : materiais.filter((m) => m.categoria === a).length;
-    return acc;
-  }, {});
+  const contagemPorCategoria: Record<string, number> = { TODOS: materiais.length };
+  categorias.forEach((c) => {
+    contagemPorCategoria[c.codigo] = materiais.filter((m) => m.categoria === c.codigo).length;
+  });
 
   function abrirNovo() {
     setEditando(null);
-    setForm({ ...vazio, categoria: aba === 'TODOS' ? 'EPI' : (aba as Categoria) });
+    setForm({ ...vazio, categoria: aba !== 'TODOS' ? aba : categorias[0]?.codigo || '' });
     setErro('');
     setModalAberto(true);
   }
@@ -109,9 +115,34 @@ export function Estoque() {
         });
       }
       setModalAberto(false);
-      carregar();
+      carregarMateriais();
     } catch (err: any) {
       setErro(err.response?.data?.erro || 'Não foi possível salvar.');
+    }
+  }
+
+  async function confirmarExclusao() {
+    if (!excluindo) return;
+    setErroExclusao('');
+    try {
+      await api.delete(`/materiais/${excluindo.id}`);
+      setExcluindo(null);
+      carregarMateriais();
+    } catch (err: any) {
+      setErroExclusao(err.response?.data?.erro || 'Não foi possível excluir o material.');
+    }
+  }
+
+  async function criarCategoria() {
+    setErroCategoria('');
+    try {
+      const { data } = await api.post('/categorias', formCategoria);
+      setCategorias((prev) => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setModalCategoriaAberto(false);
+      setFormCategoria(vazioCategoria);
+      setAba(data.codigo);
+    } catch (err: any) {
+      setErroCategoria(err.response?.data?.erro || 'Não foi possível criar a categoria.');
     }
   }
 
@@ -121,21 +152,38 @@ export function Estoque() {
       <p className="text-[12.5px] text-textoSuave mb-5">Cadastro e saldo atual de cada item, por categoria</p>
 
       {/* abas por categoria */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {abas.map((a) => (
+      <div className="flex gap-1.5 mb-5 flex-wrap items-center">
+        <button
+          onClick={() => setAba('TODOS')}
+          className={`px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition-colors flex items-center gap-1.5 ${
+            aba === 'TODOS' ? 'bg-marinho text-white' : 'bg-white text-textoSuave border border-linha hover:bg-fundo'
+          }`}
+        >
+          Todos
+          <span className={`text-[10.5px] font-mono ${aba === 'TODOS' ? 'text-white/70' : 'text-textoSuave/70'}`}>
+            {contagemPorCategoria.TODOS}
+          </span>
+        </button>
+        {categorias.map((c) => (
           <button
-            key={a}
-            onClick={() => setAba(a)}
+            key={c.codigo}
+            onClick={() => setAba(c.codigo)}
             className={`px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition-colors flex items-center gap-1.5 ${
-              aba === a ? 'bg-marinho text-white' : 'bg-white text-textoSuave border border-linha hover:bg-fundo'
+              aba === c.codigo ? 'bg-marinho text-white' : 'bg-white text-textoSuave border border-linha hover:bg-fundo'
             }`}
           >
-            {a === 'TODOS' ? 'Todos' : categoriaLabel[a]}
-            <span className={`text-[10.5px] font-mono ${aba === a ? 'text-white/70' : 'text-textoSuave/70'}`}>
-              {contagemPorCategoria[a]}
+            {c.nome}
+            <span className={`text-[10.5px] font-mono ${aba === c.codigo ? 'text-white/70' : 'text-textoSuave/70'}`}>
+              {contagemPorCategoria[c.codigo] || 0}
             </span>
           </button>
         ))}
+        <button
+          onClick={() => { setFormCategoria(vazioCategoria); setErroCategoria(''); setModalCategoriaAberto(true); }}
+          className="px-3.5 py-2 rounded-lg text-[12.5px] font-bold text-azul border border-dashed border-azul/40 hover:bg-azulClaro transition-colors"
+        >
+          + Nova categoria
+        </button>
       </div>
 
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
@@ -145,7 +193,7 @@ export function Estoque() {
             placeholder="Buscar material..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && carregar()}
+            onKeyDown={(e) => e.key === 'Enter' && carregarMateriais()}
           />
           <select
             className="border border-linha rounded-lg px-3 py-2.5 text-[12.5px] bg-white outline-none focus:border-azul"
@@ -179,7 +227,7 @@ export function Estoque() {
               <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
                 <td className="py-3 px-4 font-mono text-azul font-semibold">{m.codigo || '—'}</td>
                 <td className="py-3 px-4 font-medium text-texto">{m.nome}</td>
-                {aba === 'TODOS' && <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.categoria]}</td>}
+                {aba === 'TODOS' && <td className="py-3 px-4 text-textoSuave">{mapaCategoria[m.categoria] || m.categoria}</td>}
                 <td className="py-3 px-4 text-textoSuave">{m.unidade}</td>
                 <td className="py-3 px-4">
                   <Medidor atual={m.estoqueAtual} minimo={m.estoqueMinimo} />
@@ -188,9 +236,12 @@ export function Estoque() {
                   {m.estoqueAtual}
                   <span className="text-textoSuave"> / {m.estoqueMinimo}</span>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <button onClick={() => abrirEdicao(m)} className="text-[12px] font-semibold text-azul">
+                <td className="py-3 px-4 text-right whitespace-nowrap">
+                  <button onClick={() => abrirEdicao(m)} className="text-[12px] font-semibold text-azul mr-3">
                     Editar
+                  </button>
+                  <button onClick={() => { setExcluindo(m); setErroExclusao(''); }} className="text-[12px] font-semibold text-alerta">
+                    Excluir
                   </button>
                 </td>
               </tr>
@@ -206,6 +257,7 @@ export function Estoque() {
         </table>
       </div>
 
+      {/* Modal: novo/editar material */}
       {modalAberto && (
         <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setModalAberto(false)}>
           <div className="bg-white rounded-2xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
@@ -213,9 +265,9 @@ export function Estoque() {
             {editando?.codigo && (
               <p className="text-[11.5px] font-mono text-azul font-semibold mb-3">{editando.codigo}</p>
             )}
-            {!editando && (
+            {!editando && form.categoria && (
               <p className="text-[11px] text-textoSuave mb-4">
-                O código será gerado automaticamente ao salvar, no formato {categoriaCodigo[form.categoria]}-XXX.
+                O código será gerado automaticamente ao salvar, no formato {form.categoria}-XXX.
               </p>
             )}
 
@@ -233,12 +285,13 @@ export function Estoque() {
                 <select
                   className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
                   value={form.categoria}
-                  onChange={(e) => setForm({ ...form, categoria: e.target.value as Categoria })}
+                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
                 >
-                  <option value="EPI">EPI (EPI-XXX)</option>
-                  <option value="LIMPEZA">Limpeza (LPZ-XXX)</option>
-                  <option value="ESCRITORIO">Escritório (ESC-XXX)</option>
-                  <option value="OUTROS">Outros (OTR-XXX)</option>
+                  {categorias.map((c) => (
+                    <option key={c.codigo} value={c.codigo}>
+                      {c.nome} ({c.codigo}-XXX)
+                    </option>
+                  ))}
                 </select>
                 {editando && editando.categoria !== form.categoria && (
                   <p className="text-[10.5px] text-alerta mt-1">Mudar a categoria vai gerar um novo código.</p>
@@ -280,14 +333,77 @@ export function Estoque() {
             {erro && <p className="text-alerta text-[12px] font-semibold mt-3">{erro}</p>}
 
             <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => setModalAberto(false)}
-                className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto"
-              >
+              <button onClick={() => setModalAberto(false)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
                 Cancelar
               </button>
               <button onClick={salvar} className="flex-1 bg-azul hover:bg-[#2660D6] transition-colors text-white rounded-lg py-2 text-[12.5px] font-bold">
                 Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: nova categoria */}
+      {modalCategoriaAberto && (
+        <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setModalCategoriaAberto(false)}>
+          <div className="bg-white rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display font-extrabold text-base text-texto mb-4">Nova categoria</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Nome</label>
+                <input
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  placeholder="Ex: Ração"
+                  value={formCategoria.nome}
+                  onChange={(e) => setFormCategoria({ ...formCategoria, nome: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Código (2 a 6 letras)</label>
+                <input
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15 uppercase"
+                  placeholder="Ex: RAC"
+                  maxLength={6}
+                  value={formCategoria.codigo}
+                  onChange={(e) => setFormCategoria({ ...formCategoria, codigo: e.target.value.toUpperCase() })}
+                />
+                <p className="text-[10.5px] text-textoSuave mt-1">
+                  Os materiais dessa categoria terão códigos {formCategoria.codigo || 'XXX'}-001, {formCategoria.codigo || 'XXX'}-002...
+                </p>
+              </div>
+            </div>
+            {erroCategoria && <p className="text-alerta text-[12px] font-semibold mt-3">{erroCategoria}</p>}
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setModalCategoriaAberto(false)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
+                Cancelar
+              </button>
+              <button onClick={criarCategoria} className="flex-1 bg-azul hover:bg-[#2660D6] transition-colors text-white rounded-lg py-2 text-[12.5px] font-bold">
+                Criar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: confirmar exclusão de material */}
+      {excluindo && (
+        <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setExcluindo(null)}>
+          <div className="bg-white rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display font-extrabold text-base text-texto mb-2">Excluir material</h2>
+            <p className="text-[12.5px] text-textoSuave mb-1">
+              Tem certeza que deseja excluir <b>{excluindo.nome}</b> ({excluindo.codigo})?
+            </p>
+            <p className="text-[11.5px] text-textoSuave mb-4">
+              Se esse material já tiver movimentações registradas, ele será apenas inativado (para preservar o histórico), não excluído de fato.
+            </p>
+            {erroExclusao && <p className="text-alerta text-[12px] font-semibold mb-3">{erroExclusao}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setExcluindo(null)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
+                Cancelar
+              </button>
+              <button onClick={confirmarExclusao} className="flex-1 bg-alerta text-white rounded-lg py-2 text-[12.5px] font-bold">
+                Excluir
               </button>
             </div>
           </div>

@@ -1,6 +1,12 @@
 export type Perfil = 'ADMINISTRADOR' | 'ALMOXARIFE';
-export type Categoria = 'EPI' | 'LIMPEZA' | 'ESCRITORIO' | 'OUTROS';
+export type Categoria = string; // agora é o código da categoria (ex: "LPZ", "EPI") — dinâmico, cadastrado pelo usuário
 export type TipoMovimentacao = 'ENTRADA' | 'SAIDA';
+
+export interface CategoriaInfo {
+  id: string;
+  nome: string;
+  codigo: string;
+}
 
 export interface Usuario {
   id: string;

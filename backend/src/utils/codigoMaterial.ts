@@ -1,18 +1,12 @@
 import { prisma } from '../lib/prisma';
 
-export const PREFIXO_CATEGORIA: Record<string, string> = {
-  EPI: 'EPI',
-  LIMPEZA: 'LPZ',
-  ESCRITORIO: 'ESC',
-  OUTROS: 'OTR',
-};
-
 /**
  * Gera o próximo código sequencial para uma categoria (ex: LPZ-001, LPZ-002...).
- * Olha o maior número já usado nessa categoria e soma 1.
+ * O parâmetro categoriaCodigo já é o prefixo (ex: "LPZ", "EPI", "RAC").
+ * Olha o maior número já usado com esse prefixo e soma 1.
  */
-export async function gerarProximoCodigo(categoria: string): Promise<string> {
-  const prefixo = PREFIXO_CATEGORIA[categoria] || 'OTR';
+export async function gerarProximoCodigo(categoriaCodigo: string): Promise<string> {
+  const prefixo = categoriaCodigo.toUpperCase();
 
   const existentes = await prisma.material.findMany({
     where: { codigo: { startsWith: `${prefixo}-` } },

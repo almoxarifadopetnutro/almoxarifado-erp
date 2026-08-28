@@ -8,6 +8,11 @@ import { gerarProximoCodigo } from '../utils/codigoMaterial';
 const router = Router();
 router.use(autenticar);
 
+async function validarCategoria(categoria: string) {
+  const existente = await prisma.categoria.findUnique({ where: { codigo: categoria } });
+  return existente;
+}
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -17,7 +22,7 @@ router.get(
       where: {
         ativo: true,
         ...(busca ? { nome: { contains: String(busca), mode: 'insensitive' } } : {}),
-        ...(categoria ? { categoria: String(categoria) as any } : {}),
+        ...(categoria ? { categoria: String(categoria) } : {}),
       },
       orderBy: ordenarPor === 'codigo' ? { codigo: 'asc' } : { nome: 'asc' },
     });
@@ -57,6 +62,11 @@ router.post(
       return res.status(400).json({ erro: 'Nome, categoria e unidade são obrigatórios' });
     }
 
+    const categoriaValida = await validarCategoria(categoria);
+    if (!categoriaValida) {
+      return res.status(400).json({ erro: 'Categoria inválida' });
+    }
+
     const codigo = await gerarProximoCodigo(categoria);
 
     const material = await prisma.material.create({
@@ -93,6 +103,8 @@ router.put(
     // se a categoria mudou, o código precisa ser regerado para refletir o novo prefixo
     let novoCodigo = existente.codigo;
     if (categoria && categoria !== existente.categoria) {
+      const categoriaValida = await validarCategoria(categoria);
+      if (!categoriaValida) return res.status(400).json({ erro: 'Categoria inválida' });
       novoCodigo = await gerarProximoCodigo(categoria);
     }
 

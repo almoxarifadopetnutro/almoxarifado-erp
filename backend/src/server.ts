@@ -8,6 +8,7 @@ import movimentacoesRoutes from './routes/movimentacoes';
 import usuariosRoutes from './routes/usuarios';
 import registrosRoutes from './routes/registros';
 import dashboardRoutes from './routes/dashboard';
+import categoriasRoutes from './routes/categorias';
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -29,6 +30,7 @@ app.use('/movimentacoes', movimentacoesRoutes);
 app.use('/usuarios', usuariosRoutes);
 app.use('/registros', registrosRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/categorias', categoriasRoutes);
 
 // handler de erro global — evita que qualquer erro derrube o processo
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

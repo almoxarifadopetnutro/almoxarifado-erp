@@ -4,13 +4,6 @@ import { Material, Movimentacao } from '../types';
 
 type Aba = 'movimentacoes' | 'consumo' | 'baixo';
 
-const categoriaLabel: Record<string, string> = {
-  EPI: 'EPI',
-  LIMPEZA: 'Limpeza',
-  ESCRITORIO: 'Escritório',
-  OUTROS: 'Outros',
-};
-
 function exportarCSV(nomeArquivo: string, linhas: string[][]) {
   const conteudo = linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
   const blob = new Blob(['\uFEFF' + conteudo], { type: 'text/csv;charset=utf-8;' });
@@ -28,6 +21,11 @@ export function Relatorios() {
   const [estoqueBaixo, setEstoqueBaixo] = useState<Material[]>([]);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [mapaCategoria, setMapaCategoria] = useState<Record<string, string>>({});
+
+  function nomeCategoria(codigo: string) {
+    return mapaCategoria[codigo] || codigo;
+  }
 
   async function carregar() {
     const params: Record<string, string> = {};
@@ -42,6 +40,11 @@ export function Relatorios() {
   }
 
   useEffect(() => {
+    api.get('/categorias').then((res) => {
+      const mapa: Record<string, string> = {};
+      res.data.forEach((c: { codigo: string; nome: string }) => (mapa[c.codigo] = c.nome));
+      setMapaCategoria(mapa);
+    });
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -61,7 +64,7 @@ export function Relatorios() {
         ...movimentacoes.map((m) => [
           new Date(m.data).toLocaleDateString('pt-BR'),
           m.material.nome,
-          categoriaLabel[m.material.categoria],
+          nomeCategoria(m.material.categoria),
           m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída',
           String(m.quantidade),
           m.setorDestino || m.fornecedor || '',
@@ -71,14 +74,14 @@ export function Relatorios() {
     } else if (aba === 'consumo') {
       exportarCSV('consumo-por-categoria.csv', [
         ['Categoria', 'Total consumido (saídas)'],
-        ...Object.entries(consumoPorCategoria).map(([cat, total]) => [categoriaLabel[cat], String(total)]),
+        ...Object.entries(consumoPorCategoria).map(([cat, total]) => [nomeCategoria(cat), String(total)]),
       ]);
     } else {
       exportarCSV('estoque-baixo.csv', [
         ['Material', 'Categoria', 'Estoque atual', 'Estoque mínimo', 'Unidade'],
         ...estoqueBaixo.map((m) => [
           m.nome,
-          categoriaLabel[m.categoria],
+          nomeCategoria(m.categoria),
           String(m.estoqueAtual),
           String(m.estoqueMinimo),
           m.unidade,
@@ -147,7 +150,7 @@ export function Relatorios() {
                 <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
                   <td className="py-3 px-4 text-textoSuave">{new Date(m.data).toLocaleDateString('pt-BR')}</td>
                   <td className="py-3 px-4 font-medium text-texto">{m.material.nome}</td>
-                  <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.material.categoria]}</td>
+                  <td className="py-3 px-4 text-textoSuave">{nomeCategoria(m.material.categoria)}</td>
                   <td className="py-3 px-4 text-textoSuave">{m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
                   <td className="py-3 px-4 font-mono text-texto">{m.quantidade}</td>
                 </tr>
@@ -169,7 +172,7 @@ export function Relatorios() {
             <tbody>
               {Object.entries(consumoPorCategoria).map(([cat, total]) => (
                 <tr key={cat} className="border-b border-linha last:border-none hover:bg-fundo/60">
-                  <td className="py-3 px-4 font-medium text-texto">{categoriaLabel[cat]}</td>
+                  <td className="py-3 px-4 font-medium text-texto">{nomeCategoria(cat)}</td>
                   <td className="py-3 px-4 font-mono text-texto">{total}</td>
                 </tr>
               ))}
@@ -193,7 +196,7 @@ export function Relatorios() {
               {estoqueBaixo.map((m) => (
                 <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
                   <td className="py-3 px-4 font-medium text-texto">{m.nome}</td>
-                  <td className="py-3 px-4 text-textoSuave">{categoriaLabel[m.categoria]}</td>
+                  <td className="py-3 px-4 text-textoSuave">{nomeCategoria(m.categoria)}</td>
                   <td className="py-3 px-4 font-mono text-alerta font-semibold">{m.estoqueAtual}</td>
                   <td className="py-3 px-4 font-mono text-texto">{m.estoqueMinimo}</td>
                 </tr>

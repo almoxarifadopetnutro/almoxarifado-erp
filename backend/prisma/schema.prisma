@@ -12,13 +12,6 @@ enum Perfil {
   ALMOXARIFE
 }
 
-enum Categoria {
-  EPI
-  LIMPEZA
-  ESCRITORIO
-  OUTROS
-}
-
 enum TipoMovimentacao {
   ENTRADA
   SAIDA
@@ -28,6 +21,15 @@ enum AcaoRegistro {
   CRIACAO
   ALTERACAO
   EXCLUSAO
+}
+
+model Categoria {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  codigo    String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("categorias")
 }
 
 model Usuario {
@@ -49,7 +51,7 @@ model Material {
   id             String    @id @default(uuid())
   codigo         String?   @unique
   nome           String
-  categoria      Categoria
+  categoria      String
   unidade        String
   estoqueAtual   Decimal   @default(0) @db.Decimal(12, 2)
   estoqueMinimo  Decimal   @default(0) @db.Decimal(12, 2)
