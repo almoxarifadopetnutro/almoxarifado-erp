@@ -19,14 +19,15 @@ export function Layout() {
     <div className="min-h-screen flex bg-fundo">
       <aside className="w-[200px] shrink-0 bg-marinho p-4 flex flex-col">
         <div className="flex items-center gap-2.5 px-1 mb-8 mt-1">
-          <div className="w-8 h-8 rounded-lg bg-azul flex items-center justify-center text-white font-display font-extrabold text-sm">
-            A
+          <div className="w-8 h-8 rounded-lg bg-azul flex items-center justify-center text-white flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" />
+              <path d="M3 8l9 5 9-5" />
+              <path d="M12 13v8" />
+            </svg>
           </div>
           <div>
             <div className="font-display font-extrabold text-sm leading-none text-white">Almoxarifado</div>
-            <div className="text-[10px] font-semibold text-[#7C93B8] uppercase tracking-wide mt-0.5">
-              Pet's Kitchen
-            </div>
           </div>
         </div>
 
