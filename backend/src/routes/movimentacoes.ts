@@ -114,13 +114,118 @@ router.post(
   })
 );
 
+router.put(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { tipo, materialId, quantidade, data, fornecedor, setorDestino, motivo, observacao } = req.body;
+
+    if (!tipo || !materialId || !quantidade || !data) {
+      return res.status(400).json({ erro: 'Tipo, material, quantidade e data são obrigatórios' });
+    }
+    if (!['ENTRADA', 'SAIDA'].includes(tipo)) {
+      return res.status(400).json({ erro: 'Tipo inválido' });
+    }
+    const qtdNova = Number(quantidade);
+    if (qtdNova <= 0) {
+      return res.status(400).json({ erro: 'Quantidade deve ser maior que zero' });
+    }
+
+    const movimentacaoAtual = await prisma.movimentacao.findUnique({ where: { id: req.params.id } });
+    if (!movimentacaoAtual) return res.status(404).json({ erro: 'Movimentação não encontrada' });
+
+    const materialNovo = await prisma.material.findUnique({ where: { id: materialId } });
+    if (!materialNovo) return res.status(404).json({ erro: 'Material não encontrado' });
+
+    const qtdAntiga = Number(movimentacaoAtual.quantidade);
+    const materialMudou = movimentacaoAtual.materialId !== materialId;
+
+    const dadosMovimentacao = {
+      tipo,
+      materialId,
+      quantidade: qtdNova,
+      data: parseDataLocal(data),
+      fornecedor: tipo === 'ENTRADA' ? fornecedor : null,
+      setorDestino: tipo === 'SAIDA' ? setorDestino : null,
+      motivo: tipo === 'SAIDA' ? motivo : null,
+      observacao,
+    };
+
+    if (materialMudou) {
+      // material trocado: reverte o efeito no material antigo e aplica o novo efeito no material novo
+      const materialAntigo = await prisma.material.findUnique({ where: { id: movimentacaoAtual.materialId } });
+      if (!materialAntigo) return res.status(404).json({ erro: 'Material original não encontrado' });
+
+      const saldoAntigoRevertido =
+        movimentacaoAtual.tipo === 'ENTRADA'
+          ? Number(materialAntigo.estoqueAtual) - qtdAntiga
+          : Number(materialAntigo.estoqueAtual) + qtdAntiga;
+
+      if (saldoAntigoRevertido < 0) {
+        return res.status(400).json({
+          erro: `Não é possível editar: o saldo de "${materialAntigo.nome}" ficaria negativo ao reverter a movimentação original.`,
+        });
+      }
+
+      const saldoNovoAplicado =
+        tipo === 'ENTRADA'
+          ? Number(materialNovo.estoqueAtual) + qtdNova
+          : Number(materialNovo.estoqueAtual) - qtdNova;
+
+      if (saldoNovoAplicado < 0) {
+        return res.status(400).json({
+          erro: `Estoque insuficiente de "${materialNovo.nome}" para essa saída.`,
+        });
+      }
+
+      await prisma.$transaction([
+        prisma.material.update({ where: { id: materialAntigo.id }, data: { estoqueAtual: saldoAntigoRevertido } }),
+        prisma.material.update({ where: { id: materialNovo.id }, data: { estoqueAtual: saldoNovoAplicado } }),
+        prisma.movimentacao.update({ where: { id: req.params.id }, data: dadosMovimentacao }),
+      ]);
+    } else {
+      // mesmo material: reverte o efeito antigo e aplica o novo em uma única conta
+      const saldoBase =
+        movimentacaoAtual.tipo === 'ENTRADA'
+          ? Number(materialNovo.estoqueAtual) - qtdAntiga
+          : Number(materialNovo.estoqueAtual) + qtdAntiga;
+
+      const saldoFinal = tipo === 'ENTRADA' ? saldoBase + qtdNova : saldoBase - qtdNova;
+
+      if (saldoFinal < 0) {
+        return res.status(400).json({
+          erro: `Não é possível salvar: o saldo de "${materialNovo.nome}" ficaria negativo.`,
+        });
+      }
+
+      await prisma.$transaction([
+        prisma.material.update({ where: { id: materialNovo.id }, data: { estoqueAtual: saldoFinal } }),
+        prisma.movimentacao.update({ where: { id: req.params.id }, data: dadosMovimentacao }),
+      ]);
+    }
+
+    await registrar({
+      entidade: 'Movimentacao',
+      entidadeId: req.params.id,
+      acao: 'EDICAO',
+      detalhes: `Movimentação de "${materialNovo.nome}" editada (${tipo === 'ENTRADA' ? 'Entrada' : 'Saída'} de ${qtdNova} ${materialNovo.unidade})`,
+      usuarioNome: req.usuario!.nome,
+    });
+
+    const atualizada = await prisma.movimentacao.findUnique({
+      where: { id: req.params.id },
+      include: {
+        material: { select: { nome: true, categoria: true, unidade: true } },
+        usuario: { select: { nome: true } },
+      },
+    });
+
+    res.json({ ...atualizada, quantidade: Number(atualizada!.quantidade) });
+  })
+);
+
 router.delete(
   '/:id',
   asyncHandler(async (req: AuthRequest, res) => {
-    if (req.usuario!.perfil !== 'ADMINISTRADOR') {
-      return res.status(403).json({ erro: 'Apenas o Administrador pode excluir movimentações' });
-    }
-
     const movimentacao = await prisma.movimentacao.findUnique({
       where: { id: req.params.id },
       include: { material: true },
