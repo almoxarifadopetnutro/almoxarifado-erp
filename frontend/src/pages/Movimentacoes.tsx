@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Material, Movimentacao, TipoMovimentacao } from '../types';
+import { SeletorMaterial } from '../components/SeletorMaterial';
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
@@ -174,17 +175,7 @@ export function Movimentacoes() {
       <div className="grid grid-cols-2 gap-3.5 max-w-lg">
         <div className="col-span-2">
           <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Material</label>
-          <select
-            className="w-full border border-linha rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
-            value={materialId}
-            onChange={(e) => setMaterialId(e.target.value)}
-          >
-            {materiais.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nome} — saldo atual: {m.estoqueAtual} {m.unidade}
-              </option>
-            ))}
-          </select>
+          <SeletorMaterial materiais={materiais} value={materialId} onChange={setMaterialId} />
         </div>
         <div>
           <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Quantidade</label>
@@ -358,17 +349,7 @@ export function Movimentacoes() {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Material</label>
-                <select
-                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
-                  value={edMaterialId}
-                  onChange={(e) => setEdMaterialId(e.target.value)}
-                >
-                  {materiais.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nome} — saldo atual: {m.estoqueAtual} {m.unidade}
-                    </option>
-                  ))}
-                </select>
+                <SeletorMaterial materiais={materiais} value={edMaterialId} onChange={setEdMaterialId} />
               </div>
               <div>
                 <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Quantidade</label>
