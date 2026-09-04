@@ -7,6 +7,17 @@ import { registrar } from '../utils/registrar';
 const router = Router();
 router.use(autenticar);
 
+/**
+ * Converte uma data recebida do frontend (ex: "2026-09-03" ou um ISO completo)
+ * em um Date fixado ao meio-dia local, evitando que o fuso horário (UTC-3)
+ * "empurre" a data pro dia anterior quando não há horário informado.
+ */
+function parseDataLocal(valor: string): Date {
+  const soData = String(valor).slice(0, 10); // pega só "AAAA-MM-DD"
+  const [ano, mes, dia] = soData.split('-').map(Number);
+  return new Date(ano, mes - 1, dia, 12, 0, 0);
+}
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -19,8 +30,8 @@ router.get(
         ...(dataInicio || dataFim
           ? {
               data: {
-                ...(dataInicio ? { gte: new Date(String(dataInicio)) } : {}),
-                ...(dataFim ? { lte: new Date(String(dataFim)) } : {}),
+                ...(dataInicio ? { gte: parseDataLocal(String(dataInicio)) } : {}),
+                ...(dataFim ? { lte: parseDataLocal(String(dataFim)) } : {}),
               },
             }
           : {}),
@@ -76,7 +87,7 @@ router.post(
         data: {
           tipo,
           quantidade: qtd,
-          data: new Date(data),
+          data: parseDataLocal(data),
           fornecedor: tipo === 'ENTRADA' ? fornecedor : null,
           setorDestino: tipo === 'SAIDA' ? setorDestino : null,
           motivo: tipo === 'SAIDA' ? motivo : null,
