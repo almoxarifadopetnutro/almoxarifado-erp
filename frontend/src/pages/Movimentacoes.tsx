@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Material, Movimentacao, TipoMovimentacao } from '../types';
 import { SeletorMaterial } from '../components/SeletorMaterial';
+import { SeletorTexto } from '../components/SeletorTexto';
+
+const SETORES = ['ADMINISTRATIVO', 'EXPEDIÇÃO NUTRO', 'EXPEDIÇÃO PETS', 'SERVIÇOS GERAIS', 'PRODUÇÃO E QUALIDADE'];
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
@@ -211,11 +214,11 @@ export function Movimentacoes() {
           <>
             <div>
               <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Setor / Destino</label>
-              <input
-                className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
-                placeholder="Ex: Setor Produção"
+              <SeletorTexto
+                opcoes={SETORES}
                 value={setorDestino}
-                onChange={(e) => setSetorDestino(e.target.value)}
+                onChange={setSetorDestino}
+                placeholder="Ex: Setor Produção"
               />
             </div>
             <div>
@@ -383,10 +386,10 @@ export function Movimentacoes() {
                 <>
                   <div>
                     <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Setor / Destino</label>
-                    <input
-                      className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                    <SeletorTexto
+                      opcoes={SETORES}
                       value={edSetorDestino}
-                      onChange={(e) => setEdSetorDestino(e.target.value)}
+                      onChange={setEdSetorDestino}
                     />
                   </div>
                   <div>
