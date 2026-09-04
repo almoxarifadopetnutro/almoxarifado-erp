@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import { Material, Movimentacao, TipoMovimentacao } from '../types';
 
 function hojeISO() {
@@ -8,7 +7,6 @@ function hojeISO() {
 }
 
 export function Movimentacoes() {
-  const { usuario } = useAuth();
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [historico, setHistorico] = useState<Movimentacao[]>([]);
   const [tipo, setTipo] = useState<TipoMovimentacao>('ENTRADA');
@@ -24,6 +22,19 @@ export function Movimentacoes() {
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState<Movimentacao | null>(null);
   const [erroExclusao, setErroExclusao] = useState('');
+
+  // --- edição ---
+  const [editando, setEditando] = useState<Movimentacao | null>(null);
+  const [edTipo, setEdTipo] = useState<TipoMovimentacao>('ENTRADA');
+  const [edMaterialId, setEdMaterialId] = useState('');
+  const [edQuantidade, setEdQuantidade] = useState('');
+  const [edData, setEdData] = useState('');
+  const [edFornecedor, setEdFornecedor] = useState('');
+  const [edSetorDestino, setEdSetorDestino] = useState('');
+  const [edMotivo, setEdMotivo] = useState('');
+  const [edObservacao, setEdObservacao] = useState('');
+  const [erroEdicao, setErroEdicao] = useState('');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   async function carregar() {
     const [resMateriais, resHistorico] = await Promise.all([
@@ -86,6 +97,47 @@ export function Movimentacoes() {
       carregar();
     } catch (err: any) {
       setErroExclusao(err.response?.data?.erro || 'Não foi possível excluir a movimentação.');
+    }
+  }
+
+  function abrirEdicao(m: Movimentacao) {
+    setEditando(m);
+    setErroEdicao('');
+    setEdTipo(m.tipo);
+    setEdMaterialId((m as any).materialId ?? materiais.find((mat) => mat.nome === m.material.nome)?.id ?? '');
+    setEdQuantidade(String(m.quantidade));
+    setEdData(new Date(m.data).toISOString().slice(0, 10));
+    setEdFornecedor((m as any).fornecedor || '');
+    setEdSetorDestino((m as any).setorDestino || '');
+    setEdMotivo((m as any).motivo || '');
+    setEdObservacao((m as any).observacao || '');
+  }
+
+  async function salvarEdicao() {
+    if (!editando) return;
+    setErroEdicao('');
+    if (!edMaterialId || !edQuantidade) {
+      setErroEdicao('Selecione o material e informe a quantidade.');
+      return;
+    }
+    setSalvandoEdicao(true);
+    try {
+      await api.put(`/movimentacoes/${editando.id}`, {
+        tipo: edTipo,
+        materialId: edMaterialId,
+        quantidade: Number(edQuantidade),
+        data: edData,
+        fornecedor: edTipo === 'ENTRADA' ? edFornecedor : undefined,
+        setorDestino: edTipo === 'SAIDA' ? edSetorDestino : undefined,
+        motivo: edTipo === 'SAIDA' ? edMotivo : undefined,
+        observacao: edObservacao,
+      });
+      setEditando(null);
+      carregar();
+    } catch (err: any) {
+      setErroEdicao(err.response?.data?.erro || 'Não foi possível salvar a edição.');
+    } finally {
+      setSalvandoEdicao(false);
     }
   }
 
@@ -218,9 +270,9 @@ export function Movimentacoes() {
               <th className="py-3 px-4 font-bold">Material</th>
               <th className="py-3 px-4 font-bold">Tipo</th>
               <th className="py-3 px-4 font-bold">Qtd</th>
-              <th className="py-3 px-4 font-bold">Detalhe</th>
+              <th className="py-3 px-4 font-bold">Setor</th>
               <th className="py-3 px-4 font-bold">Registrado por</th>
-              {usuario?.perfil === 'ADMINISTRADOR' && <th className="py-3 px-4 font-bold"></th>}
+              <th className="py-3 px-4 font-bold"></th>
             </tr>
           </thead>
           <tbody>
@@ -236,16 +288,20 @@ export function Movimentacoes() {
                 <td className="py-3 px-4 font-mono text-texto">{m.quantidade}</td>
                 <td className="py-3 px-4 text-textoSuave">{m.setorDestino || m.fornecedor || '—'}</td>
                 <td className="py-3 px-4 text-textoSuave">{m.usuario.nome}</td>
-                {usuario?.perfil === 'ADMINISTRADOR' && (
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => { setExcluindo(m); setErroExclusao(''); }}
-                      className="text-[12px] font-semibold text-alerta"
-                    >
-                      Excluir
-                    </button>
-                  </td>
-                )}
+                <td className="py-3 px-4 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => abrirEdicao(m)}
+                    className="text-[12px] font-semibold text-azul mr-3.5"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => { setExcluindo(m); setErroExclusao(''); }}
+                    className="text-[12px] font-semibold text-alerta"
+                  >
+                    Excluir
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -269,6 +325,122 @@ export function Movimentacoes() {
               </button>
               <button onClick={confirmarExclusao} className="flex-1 bg-azul text-white rounded-lg py-2 text-[12.5px] font-bold">
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editando && (
+        <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setEditando(null)}>
+          <div className="bg-white rounded-2xl p-6 w-[420px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display font-extrabold text-base text-texto mb-4">Editar movimentação</h2>
+
+            <div className="flex gap-2.5 mb-4">
+              <button
+                onClick={() => setEdTipo('ENTRADA')}
+                className={`flex-1 rounded-xl py-2.5 text-center font-bold text-[12.5px] border-[1.5px] transition-colors ${
+                  edTipo === 'ENTRADA' ? 'border-ok bg-okClaro text-ok' : 'border-linha text-textoSuave bg-white'
+                }`}
+              >
+                ↓ Entrada
+              </button>
+              <button
+                onClick={() => setEdTipo('SAIDA')}
+                className={`flex-1 rounded-xl py-2.5 text-center font-bold text-[12.5px] border-[1.5px] transition-colors ${
+                  edTipo === 'SAIDA' ? 'border-alerta bg-alertaClaro text-alerta' : 'border-linha text-textoSuave bg-white'
+                }`}
+              >
+                ↑ Saída
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Material</label>
+                <select
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  value={edMaterialId}
+                  onChange={(e) => setEdMaterialId(e.target.value)}
+                >
+                  {materiais.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nome} — saldo atual: {m.estoqueAtual} {m.unidade}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Quantidade</label>
+                <input
+                  type="number"
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  value={edQuantidade}
+                  onChange={(e) => setEdQuantidade(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Data</label>
+                <input
+                  type="date"
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  value={edData}
+                  onChange={(e) => setEdData(e.target.value)}
+                />
+              </div>
+
+              {edTipo === 'ENTRADA' ? (
+                <div className="col-span-2">
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Fornecedor</label>
+                  <input
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                    value={edFornecedor}
+                    onChange={(e) => setEdFornecedor(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Setor / Destino</label>
+                    <input
+                      className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                      value={edSetorDestino}
+                      onChange={(e) => setEdSetorDestino(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Motivo da retirada</label>
+                    <input
+                      className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                      value={edMotivo}
+                      onChange={(e) => setEdMotivo(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="col-span-2">
+                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Observação (opcional)</label>
+                <input
+                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  value={edObservacao}
+                  onChange={(e) => setEdObservacao(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {erroEdicao && <p className="text-alerta text-[12px] font-semibold mt-3">{erroEdicao}</p>}
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setEditando(null)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEdicao}
+                disabled={salvandoEdicao}
+                className="flex-1 bg-azul text-white rounded-lg py-2 text-[12.5px] font-bold disabled:opacity-60"
+              >
+                {salvandoEdicao ? 'Salvando...' : 'Salvar alterações'}
               </button>
             </div>
           </div>
