@@ -206,7 +206,7 @@ router.put(
     await registrar({
       entidade: 'Movimentacao',
       entidadeId: req.params.id,
-      acao: 'EDICAO',
+      acao: 'ALTERACAO',
       detalhes: `Movimentação de "${materialNovo.nome}" editada (${tipo === 'ENTRADA' ? 'Entrada' : 'Saída'} de ${qtdNova} ${materialNovo.unidade})`,
       usuarioNome: req.usuario!.nome,
     });
