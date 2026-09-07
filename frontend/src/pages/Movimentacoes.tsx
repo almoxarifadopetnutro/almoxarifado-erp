@@ -4,7 +4,7 @@ import { Material, Movimentacao, TipoMovimentacao } from '../types';
 import { SeletorMaterial } from '../components/SeletorMaterial';
 import { SeletorTexto } from '../components/SeletorTexto';
 
-const SETORES = ['ADMINISTRATIVO', 'EXPEDIÇÃO NUTRO', 'EXPEDIÇÃO PETS', 'SERVIÇOS GERAIS', 'PRODUÇÃO E QUALIDADE'];
+const SETORES = ['ADMINISTRATIVO', 'EXPEDIÇÃO NUTRO', 'EXPEDIÇÃO PETS', 'SERVIÇOS GERAIS', 'PRODUÇÃO', 'QUALIDADE'];
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
