@@ -51,6 +51,42 @@ router.post(
   })
 );
 
+router.put(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { nome } = req.body;
+
+    if (!nome || !String(nome).trim()) {
+      return res.status(400).json({ erro: 'Nome é obrigatório' });
+    }
+
+    const nomeTratado = String(nome).trim();
+
+    const existente = await prisma.categoria.findUnique({ where: { id: req.params.id } });
+    if (!existente) return res.status(404).json({ erro: 'Categoria não encontrada' });
+
+    const nomeExistente = await prisma.categoria.findUnique({ where: { nome: nomeTratado } });
+    if (nomeExistente && nomeExistente.id !== existente.id) {
+      return res.status(409).json({ erro: 'Já existe uma categoria com esse nome' });
+    }
+
+    const categoria = await prisma.categoria.update({
+      where: { id: req.params.id },
+      data: { nome: nomeTratado },
+    });
+
+    await registrar({
+      entidade: 'Categoria',
+      entidadeId: categoria.id,
+      acao: 'ALTERACAO',
+      detalhes: `Categoria "${existente.nome}" renomeada para "${categoria.nome}"`,
+      usuarioNome: req.usuario!.nome,
+    });
+
+    res.json(categoria);
+  })
+);
+
 router.delete(
   '/:id',
   asyncHandler(async (req: AuthRequest, res) => {

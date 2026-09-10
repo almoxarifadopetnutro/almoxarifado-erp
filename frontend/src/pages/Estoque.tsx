@@ -37,16 +37,22 @@ export function Estoque() {
   const [modalCategoriaAberto, setModalCategoriaAberto] = useState(false);
   const [formCategoria, setFormCategoria] = useState(vazioCategoria);
   const [erroCategoria, setErroCategoria] = useState('');
+  const [editandoCategoria, setEditandoCategoria] = useState<CategoriaInfo | null>(null);
 
   const mapaCategoria = categorias.reduce<Record<string, string>>((acc, c) => {
     acc[c.codigo] = c.nome;
     return acc;
   }, {});
 
+  function ordenarCategorias(lista: CategoriaInfo[]) {
+    return [...lista].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }
+
   async function carregarCategorias() {
     const { data } = await api.get('/categorias');
-    setCategorias(data);
-    if (!form.categoria && data.length > 0) setForm((f) => ({ ...f, categoria: data[0].codigo }));
+    const ordenadas = ordenarCategorias(data);
+    setCategorias(ordenadas);
+    if (!form.categoria && ordenadas.length > 0) setForm((f) => ({ ...f, categoria: ordenadas[0].codigo }));
   }
 
   async function carregarMateriais() {
@@ -133,16 +139,38 @@ export function Estoque() {
     }
   }
 
-  async function criarCategoria() {
+  function abrirNovaCategoria() {
+    setEditandoCategoria(null);
+    setFormCategoria(vazioCategoria);
+    setErroCategoria('');
+    setModalCategoriaAberto(true);
+  }
+
+  function abrirEdicaoCategoria(c: CategoriaInfo) {
+    setEditandoCategoria(c);
+    setFormCategoria({ nome: c.nome, codigo: c.codigo });
+    setErroCategoria('');
+    setModalCategoriaAberto(true);
+  }
+
+  async function salvarCategoria() {
     setErroCategoria('');
     try {
-      const { data } = await api.post('/categorias', formCategoria);
-      setCategorias((prev) => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)));
-      setModalCategoriaAberto(false);
-      setFormCategoria(vazioCategoria);
-      setAba(data.codigo);
+      if (editandoCategoria) {
+        const { data } = await api.put(`/categorias/${editandoCategoria.id}`, { nome: formCategoria.nome });
+        setCategorias((prev) => ordenarCategorias(prev.map((c) => (c.id === data.id ? data : c))));
+        setModalCategoriaAberto(false);
+        setFormCategoria(vazioCategoria);
+        setEditandoCategoria(null);
+      } else {
+        const { data } = await api.post('/categorias', formCategoria);
+        setCategorias((prev) => ordenarCategorias([...prev, data]));
+        setModalCategoriaAberto(false);
+        setFormCategoria(vazioCategoria);
+        setAba(data.codigo);
+      }
     } catch (err: any) {
-      setErroCategoria(err.response?.data?.erro || 'Não foi possível criar a categoria.');
+      setErroCategoria(err.response?.data?.erro || 'Não foi possível salvar a categoria.');
     }
   }
 
@@ -165,21 +193,31 @@ export function Estoque() {
           </span>
         </button>
         {categorias.map((c) => (
-          <button
-            key={c.codigo}
-            onClick={() => setAba(c.codigo)}
-            className={`px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition-colors flex items-center gap-1.5 ${
-              aba === c.codigo ? 'bg-marinho text-white' : 'bg-white text-textoSuave border border-linha hover:bg-fundo'
-            }`}
-          >
-            {c.nome}
-            <span className={`text-[10.5px] font-mono ${aba === c.codigo ? 'text-white/70' : 'text-textoSuave/70'}`}>
-              {contagemPorCategoria[c.codigo] || 0}
-            </span>
-          </button>
+          <div key={c.codigo} className="relative group">
+            <button
+              onClick={() => setAba(c.codigo)}
+              className={`pl-3.5 pr-7 py-2 rounded-lg text-[12.5px] font-bold transition-colors flex items-center gap-1.5 ${
+                aba === c.codigo ? 'bg-marinho text-white' : 'bg-white text-textoSuave border border-linha hover:bg-fundo'
+              }`}
+            >
+              {c.nome}
+              <span className={`text-[10.5px] font-mono ${aba === c.codigo ? 'text-white/70' : 'text-textoSuave/70'}`}>
+                {contagemPorCategoria[c.codigo] || 0}
+              </span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); abrirEdicaoCategoria(c); }}
+              title="Editar categoria"
+              className={`absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                aba === c.codigo ? 'text-white/80 hover:text-white' : 'text-textoSuave hover:text-azul'
+              }`}
+            >
+              ✎
+            </button>
+          </div>
         ))}
         <button
-          onClick={() => { setFormCategoria(vazioCategoria); setErroCategoria(''); setModalCategoriaAberto(true); }}
+          onClick={abrirNovaCategoria}
           className="px-3.5 py-2 rounded-lg text-[12.5px] font-bold text-azul border border-dashed border-azul/40 hover:bg-azulClaro transition-colors"
         >
           + Nova categoria
@@ -344,11 +382,13 @@ export function Estoque() {
         </div>
       )}
 
-      {/* Modal: nova categoria */}
+      {/* Modal: nova/editar categoria */}
       {modalCategoriaAberto && (
         <div className="fixed inset-0 bg-marinho/40 flex items-center justify-center z-50" onClick={() => setModalCategoriaAberto(false)}>
           <div className="bg-white rounded-2xl p-6 w-[380px]" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-display font-extrabold text-base text-texto mb-4">Nova categoria</h2>
+            <h2 className="font-display font-extrabold text-base text-texto mb-4">
+              {editandoCategoria ? 'Editar categoria' : 'Nova categoria'}
+            </h2>
             <div className="space-y-3">
               <div>
                 <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Nome</label>
@@ -359,27 +399,44 @@ export function Estoque() {
                   onChange={(e) => setFormCategoria({ ...formCategoria, nome: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Código (2 a 6 letras)</label>
-                <input
-                  className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15 uppercase"
-                  placeholder="Ex: RAC"
-                  maxLength={6}
-                  value={formCategoria.codigo}
-                  onChange={(e) => setFormCategoria({ ...formCategoria, codigo: e.target.value.toUpperCase() })}
-                />
-                <p className="text-[10.5px] text-textoSuave mt-1">
-                  Os materiais dessa categoria terão códigos {formCategoria.codigo || 'XXX'}-001, {formCategoria.codigo || 'XXX'}-002...
-                </p>
-              </div>
+              {editandoCategoria ? (
+                <div>
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Código</label>
+                  <input
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm bg-fundo text-textoSuave"
+                    value={formCategoria.codigo}
+                    disabled
+                  />
+                  <p className="text-[10.5px] text-textoSuave mt-1">
+                    O código não pode ser alterado, pois já está vinculado aos materiais cadastrados nessa categoria.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Código (2 a 6 letras)</label>
+                  <input
+                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15 uppercase"
+                    placeholder="Ex: RAC"
+                    maxLength={6}
+                    value={formCategoria.codigo}
+                    onChange={(e) => setFormCategoria({ ...formCategoria, codigo: e.target.value.toUpperCase() })}
+                  />
+                  <p className="text-[10.5px] text-textoSuave mt-1">
+                    Os materiais dessa categoria terão códigos {formCategoria.codigo || 'XXX'}-001, {formCategoria.codigo || 'XXX'}-002...
+                  </p>
+                </div>
+              )}
             </div>
             {erroCategoria && <p className="text-alerta text-[12px] font-semibold mt-3">{erroCategoria}</p>}
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setModalCategoriaAberto(false)} className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto">
+              <button
+                onClick={() => { setModalCategoriaAberto(false); setEditandoCategoria(null); }}
+                className="flex-1 border border-linha rounded-lg py-2 text-[12.5px] font-bold text-texto"
+              >
                 Cancelar
               </button>
-              <button onClick={criarCategoria} className="flex-1 bg-azul hover:bg-[#2660D6] transition-colors text-white rounded-lg py-2 text-[12.5px] font-bold">
-                Criar
+              <button onClick={salvarCategoria} className="flex-1 bg-azul hover:bg-[#2660D6] transition-colors text-white rounded-lg py-2 text-[12.5px] font-bold">
+                {editandoCategoria ? 'Salvar' : 'Criar'}
               </button>
             </div>
           </div>
