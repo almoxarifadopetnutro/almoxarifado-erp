@@ -40,15 +40,43 @@ export function Movimentacoes() {
   const [erroEdicao, setErroEdicao] = useState('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
-  async function carregar() {
+  // --- filtro por data e produto ---
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+  const [filtroProduto, setFiltroProduto] = useState('');
+
+  async function carregar(
+    dataInicioParam = filtroDataInicio,
+    dataFimParam = filtroDataFim,
+    produtoParam = filtroProduto
+  ) {
     const [resMateriais, resHistorico] = await Promise.all([
       api.get('/materiais'),
-      api.get('/movimentacoes'),
+      api.get('/movimentacoes', {
+        params: {
+          ...(dataInicioParam ? { dataInicio: dataInicioParam } : {}),
+          ...(dataFimParam ? { dataFim: dataFimParam } : {}),
+          ...(produtoParam ? { material: produtoParam } : {}),
+        },
+      }),
     ]);
     setMateriais(resMateriais.data);
     setHistorico(resHistorico.data);
     if (!materialId && resMateriais.data.length > 0) setMaterialId(resMateriais.data[0].id);
   }
+
+  function filtrarPorData() {
+    carregar(filtroDataInicio, filtroDataFim, filtroProduto);
+  }
+
+  function limparFiltroData() {
+    setFiltroDataInicio('');
+    setFiltroDataFim('');
+    setFiltroProduto('');
+    carregar('', '', '');
+  }
+
+  const filtroAtivo = !!(filtroDataInicio || filtroDataFim || filtroProduto);
 
   useEffect(() => {
     carregar();
@@ -255,7 +283,56 @@ export function Movimentacoes() {
         {salvando ? 'Registrando...' : tipo === 'ENTRADA' ? 'Registrar entrada' : 'Registrar saída'}
       </button>
 
-      <p className="text-[12.5px] font-bold text-texto mt-9 mb-2.5">Últimas movimentações</p>
+      <div className="flex items-end justify-between flex-wrap gap-3 mt-9 mb-2.5">
+        <p className="text-[12.5px] font-bold text-texto">
+          {filtroAtivo ? `Movimentações filtradas (${historico.length})` : 'Últimas movimentações'}
+        </p>
+        <div className="flex items-end gap-2 flex-wrap">
+          <div>
+            <label className="text-[10.5px] font-bold text-textoSuave block mb-1">Produto</label>
+            <input
+              type="text"
+              placeholder="Buscar por nome..."
+              className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] w-44 outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+              value={filtroProduto}
+              onChange={(e) => setFiltroProduto(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && filtrarPorData()}
+            />
+          </div>
+          <div>
+            <label className="text-[10.5px] font-bold text-textoSuave block mb-1">De</label>
+            <input
+              type="date"
+              className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+              value={filtroDataInicio}
+              onChange={(e) => setFiltroDataInicio(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-[10.5px] font-bold text-textoSuave block mb-1">Até</label>
+            <input
+              type="date"
+              className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+              value={filtroDataFim}
+              onChange={(e) => setFiltroDataFim(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={filtrarPorData}
+            className="bg-azul hover:bg-[#2660D6] transition-colors text-white font-bold text-[12px] rounded-lg px-3.5 py-[7px]"
+          >
+            Filtrar
+          </button>
+          {filtroAtivo && (
+            <button
+              onClick={limparFiltroData}
+              className="text-[12px] font-semibold text-textoSuave px-1 py-[7px]"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+      </div>
       <div className="bg-white border border-linha rounded-2xl overflow-hidden">
         <table className="w-full text-[12.8px]">
           <thead>
@@ -270,7 +347,7 @@ export function Movimentacoes() {
             </tr>
           </thead>
           <tbody>
-            {historico.slice(0, 15).map((m) => (
+            {(filtroAtivo ? historico : historico.slice(0, 15)).map((m) => (
               <tr key={m.id} className="border-b border-linha last:border-none hover:bg-fundo/60">
                 <td className="py-3 px-4 text-textoSuave">{new Date(m.data).toLocaleDateString('pt-BR')}</td>
                 <td className="py-3 px-4 font-medium text-texto">{m.material.nome}</td>
@@ -298,6 +375,13 @@ export function Movimentacoes() {
                 </td>
               </tr>
             ))}
+            {filtroAtivo && historico.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-6 px-4 text-center text-textoSuave">
+                  Nenhuma movimentação encontrada nesse período.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

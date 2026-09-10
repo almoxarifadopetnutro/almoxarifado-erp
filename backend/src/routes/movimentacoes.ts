@@ -21,12 +21,15 @@ function parseDataLocal(valor: string): Date {
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { tipo, materialId, dataInicio, dataFim } = req.query;
+    const { tipo, materialId, material, dataInicio, dataFim } = req.query;
 
     const movimentacoes = await prisma.movimentacao.findMany({
       where: {
         ...(tipo ? { tipo: String(tipo) as any } : {}),
         ...(materialId ? { materialId: String(materialId) } : {}),
+        ...(material
+          ? { material: { nome: { contains: String(material), mode: 'insensitive' } } }
+          : {}),
         ...(dataInicio || dataFim
           ? {
               data: {
