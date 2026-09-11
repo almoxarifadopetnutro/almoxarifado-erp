@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Material, Movimentacao } from '../types';
 
-type Aba = 'movimentacoes' | 'consumo' | 'baixo';
+type Aba = 'movimentacoes' | 'consumo' | 'produto' | 'baixo';
 
 function exportarCSV(nomeArquivo: string, linhas: string[][]) {
   const conteudo = linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
@@ -22,6 +22,7 @@ export function Relatorios() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [mapaCategoria, setMapaCategoria] = useState<Record<string, string>>({});
+  const [filtroCategoriaProduto, setFiltroCategoriaProduto] = useState('');
 
   function nomeCategoria(codigo: string) {
     return mapaCategoria[codigo] || codigo;
@@ -57,6 +58,21 @@ export function Relatorios() {
       return acc;
     }, {});
 
+  const consumoPorProduto = movimentacoes
+    .filter((m) => m.tipo === 'SAIDA')
+    .reduce<Record<string, { nome: string; categoria: string; total: number }>>((acc, m) => {
+      const chave = m.materialId;
+      if (!acc[chave]) {
+        acc[chave] = { nome: m.material.nome, categoria: m.material.categoria, total: 0 };
+      }
+      acc[chave].total += m.quantidade;
+      return acc;
+    }, {});
+
+  const listaConsumoPorProduto = Object.values(consumoPorProduto)
+    .filter((p) => (filtroCategoriaProduto ? p.categoria === filtroCategoriaProduto : true))
+    .sort((a, b) => b.total - a.total);
+
   function exportar() {
     if (aba === 'movimentacoes') {
       exportarCSV('movimentacoes.csv', [
@@ -75,6 +91,11 @@ export function Relatorios() {
       exportarCSV('consumo-por-categoria.csv', [
         ['Categoria', 'Total consumido (saídas)'],
         ...Object.entries(consumoPorCategoria).map(([cat, total]) => [nomeCategoria(cat), String(total)]),
+      ]);
+    } else if (aba === 'produto') {
+      exportarCSV('consumo-por-produto.csv', [
+        ['Produto', 'Categoria', 'Total consumido (saídas)'],
+        ...listaConsumoPorProduto.map((p) => [p.nome, nomeCategoria(p.categoria), String(p.total)]),
       ]);
     } else {
       exportarCSV('estoque-baixo.csv', [
@@ -96,7 +117,7 @@ export function Relatorios() {
       <p className="text-[12.5px] text-textoSuave mb-5">Histórico e consumo por período</p>
 
       <div className="flex gap-6 mb-5 border-b border-linha">
-        {(['movimentacoes', 'consumo', 'baixo'] as Aba[]).map((a) => (
+        {(['movimentacoes', 'consumo', 'produto', 'baixo'] as Aba[]).map((a) => (
           <span
             key={a}
             onClick={() => setAba(a)}
@@ -104,7 +125,13 @@ export function Relatorios() {
               aba === a ? 'text-azul border-azul' : 'text-textoSuave border-transparent hover:text-texto'
             }`}
           >
-            {a === 'movimentacoes' ? 'Movimentações' : a === 'consumo' ? 'Consumo por categoria' : 'Estoque baixo'}
+            {a === 'movimentacoes'
+              ? 'Movimentações'
+              : a === 'consumo'
+              ? 'Consumo por categoria'
+              : a === 'produto'
+              ? 'Consumo por produto'
+              : 'Estoque baixo'}
           </span>
         ))}
       </div>
@@ -127,6 +154,20 @@ export function Relatorios() {
           <button onClick={carregar} className="border border-linha rounded-lg px-3 py-1.5 font-bold text-[12px] text-texto bg-white hover:bg-fundo">
             Filtrar
           </button>
+          {aba === 'produto' && (
+            <select
+              className="border border-linha rounded-lg px-2.5 py-1.5 text-[12.5px] bg-white outline-none focus:border-azul"
+              value={filtroCategoriaProduto}
+              onChange={(e) => setFiltroCategoriaProduto(e.target.value)}
+            >
+              <option value="">Todas as categorias</option>
+              {Object.entries(mapaCategoria).map(([codigo, nome]) => (
+                <option key={codigo} value={codigo}>
+                  {nome}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <button onClick={exportar} className="border border-linha bg-white rounded-lg px-3.5 py-2 font-bold text-[12.5px] text-texto hover:bg-fundo">
           ⤓ Exportar CSV / Excel
@@ -176,6 +217,36 @@ export function Relatorios() {
                   <td className="py-3 px-4 font-mono text-texto">{total}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {aba === 'produto' && (
+        <div className="bg-white border border-linha rounded-2xl overflow-hidden">
+          <table className="w-full text-[12.8px]">
+            <thead>
+              <tr className="text-left text-[10.5px] uppercase tracking-wide text-textoSuave border-b border-linha">
+                <th className="py-3 px-4 font-bold">Produto</th>
+                <th className="py-3 px-4 font-bold">Categoria</th>
+                <th className="py-3 px-4 font-bold">Total consumido (saídas)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listaConsumoPorProduto.map((p) => (
+                <tr key={p.nome} className="border-b border-linha last:border-none hover:bg-fundo/60">
+                  <td className="py-3 px-4 font-medium text-texto">{p.nome}</td>
+                  <td className="py-3 px-4 text-textoSuave">{nomeCategoria(p.categoria)}</td>
+                  <td className="py-3 px-4 font-mono text-texto">{p.total}</td>
+                </tr>
+              ))}
+              {listaConsumoPorProduto.length === 0 && (
+                <tr>
+                  <td className="py-4 px-4 text-textoSuave" colSpan={3}>
+                    Nenhum consumo encontrado para o período/categoria selecionados.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
