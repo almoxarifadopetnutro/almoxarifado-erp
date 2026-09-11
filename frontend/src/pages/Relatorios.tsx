@@ -61,7 +61,7 @@ export function Relatorios() {
   const consumoPorProduto = movimentacoes
     .filter((m) => m.tipo === 'SAIDA')
     .reduce<Record<string, { nome: string; categoria: string; total: number }>>((acc, m) => {
-      const chave = m.materialId;
+      const chave = m.material.nome;
       if (!acc[chave]) {
         acc[chave] = { nome: m.material.nome, categoria: m.material.categoria, total: 0 };
       }
