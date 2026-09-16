@@ -38,7 +38,7 @@ router.get(
     res.json({
       totalMateriais: materiais.length,
       estoqueBaixoCount: estoqueBaixo.length,
-      estoqueBaixoLista: estoqueBaixo.slice(0, 10).map((m) => ({
+      estoqueBaixoLista: estoqueBaixo.map((m) => ({
         id: m.id,
         nome: m.nome,
         estoqueAtual: Number(m.estoqueAtual),

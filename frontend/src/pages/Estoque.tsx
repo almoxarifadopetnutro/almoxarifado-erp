@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Material, CategoriaInfo } from '../types';
 
@@ -19,6 +20,8 @@ function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
 }
 
 export function Estoque() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtroBaixo = searchParams.get('filtro') === 'baixo';
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [categorias, setCategorias] = useState<CategoriaInfo[]>([]);
   const [busca, setBusca] = useState('');
@@ -74,7 +77,11 @@ export function Estoque() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordenarPor]);
 
-  const materiaisFiltrados = aba === 'TODOS' ? materiais : materiais.filter((m) => m.categoria === aba);
+  const materiaisPorCategoria = aba === 'TODOS' ? materiais : materiais.filter((m) => m.categoria === aba);
+  const materiaisFiltrados = filtroBaixo
+    ? materiaisPorCategoria.filter((m) => m.estoqueAtual < m.estoqueMinimo)
+    : materiaisPorCategoria;
+  const contagemBaixoTotal = materiais.filter((m) => m.estoqueAtual < m.estoqueMinimo).length;
 
   const contagemPorCategoria: Record<string, number> = { TODOS: materiais.length };
   categorias.forEach((c) => {
@@ -178,6 +185,20 @@ export function Estoque() {
     <div>
       <h1 className="font-display text-[22px] font-extrabold text-texto mb-0.5">Estoque</h1>
       <p className="text-[12.5px] text-textoSuave mb-5">Cadastro e saldo atual de cada item, por categoria</p>
+
+      {filtroBaixo && (
+        <div className="flex items-center gap-2 mb-5 bg-alertaClaro rounded-lg px-3.5 py-2.5">
+          <span className="text-[12.5px] font-bold text-alerta">
+            Filtro ativo: estoque baixo ({contagemBaixoTotal} {contagemBaixoTotal === 1 ? 'item' : 'itens'})
+          </span>
+          <button
+            onClick={() => setSearchParams({})}
+            className="ml-auto text-[11.5px] font-bold text-alerta border border-alerta/30 rounded-md px-2.5 py-1 hover:bg-white transition-colors"
+          >
+            Limpar filtro
+          </button>
+        </div>
+      )}
 
       {/* abas por categoria */}
       <div className="flex gap-1.5 mb-5 flex-wrap items-center">
@@ -287,7 +308,7 @@ export function Estoque() {
             {!carregando && materiaisFiltrados.length === 0 && (
               <tr>
                 <td colSpan={aba === 'TODOS' ? 7 : 6} className="py-6 px-4 text-center text-textoSuave">
-                  Nenhum material encontrado nessa categoria.
+                  {filtroBaixo ? 'Nenhum item com estoque baixo nessa categoria.' : 'Nenhum material encontrado nessa categoria.'}
                 </td>
               </tr>
             )}

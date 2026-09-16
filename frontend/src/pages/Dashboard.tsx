@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { DashboardData } from '../types';
 
@@ -17,6 +18,7 @@ function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [dados, setDados] = useState<DashboardData | null>(null);
   const [mapaCategoria, setMapaCategoria] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
@@ -46,7 +48,13 @@ export function Dashboard() {
           <div className="text-[11px] font-bold text-textoSuave uppercase tracking-wide">Itens cadastrados</div>
           <div className="text-[28px] font-mono font-semibold mt-1.5 text-texto">{dados.totalMateriais}</div>
         </div>
-        <div className="border border-alertaClaro rounded-2xl p-4 bg-alertaClaro">
+        <div
+          onDoubleClick={() => dados.estoqueBaixoCount > 0 && navigate('/estoque?filtro=baixo')}
+          title={dados.estoqueBaixoCount > 0 ? 'Duplo clique para ver todos os itens' : undefined}
+          className={`border border-alertaClaro rounded-2xl p-4 bg-alertaClaro ${
+            dados.estoqueBaixoCount > 0 ? 'cursor-pointer select-none' : ''
+          }`}
+        >
           <div className="text-[11px] font-bold text-textoSuave uppercase tracking-wide">Estoque baixo</div>
           <div className="text-[28px] font-mono font-semibold mt-1.5 text-alerta">{dados.estoqueBaixoCount}</div>
         </div>
@@ -63,7 +71,7 @@ export function Dashboard() {
       {dados.estoqueBaixoLista.length > 0 && (
         <div className="mb-7 bg-white border border-linha rounded-2xl p-4">
           <p className="text-[12.5px] font-bold text-texto mb-3">Itens abaixo do estoque mínimo</p>
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
             {dados.estoqueBaixoLista.map((m) => (
               <div key={m.id} className="flex items-center gap-3">
                 <span className="text-[12px] font-semibold text-texto w-40 truncate">{m.nome}</span>
