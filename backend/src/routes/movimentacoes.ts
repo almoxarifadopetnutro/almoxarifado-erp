@@ -44,7 +44,10 @@ router.get(
         usuario: { select: { nome: true } },
       },
       orderBy: { data: 'desc' },
-      take: 200,
+      // sem filtro de data: limita às 500 mais recentes, só como proteção de performance.
+      // com filtro de data aplicado, retorna TUDO do período (sem limite) — é o caso usado
+      // pelos relatórios e pela exportação em Excel/PDF.
+      ...(dataInicio || dataFim ? {} : { take: 500 }),
     });
 
     res.json(
