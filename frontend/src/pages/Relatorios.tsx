@@ -177,7 +177,7 @@ export function Relatorios() {
         ['Código', 'Material', 'Unidade', 'Nível', 'Estoque atual', 'Estoque mínimo'],
         ...estoqueLista.map((m) => {
           const s = statusEstoque(m.estoqueAtual, m.estoqueMinimo);
-          return [m.codigo, m.nome, m.unidade, s.label, String(m.estoqueAtual), String(m.estoqueMinimo)];
+          return [m.codigo ?? '', m.nome, m.unidade, s.label, String(m.estoqueAtual), String(m.estoqueMinimo)];
         }),
       ]);
     }
@@ -294,7 +294,7 @@ export function Relatorios() {
 
       const linhas = estoqueLista.map((m) => {
         const s = statusEstoque(m.estoqueAtual, m.estoqueMinimo);
-        return [m.codigo, m.nome, m.unidade, s.label, `${m.estoqueAtual} / ${m.estoqueMinimo}`];
+        return [m.codigo ?? '', m.nome, m.unidade, s.label, `${m.estoqueAtual} / ${m.estoqueMinimo}`];
       });
 
       autoTable(doc, {
