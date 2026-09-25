@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { DashboardData } from '../types';
+import { DestinoOuFornecedor } from '../components/DestinoOuFornecedor';
 
 function Medidor({ atual, minimo }: { atual: number; minimo: number }) {
   const alvo = minimo > 0 ? minimo * 2 : atual || 1;
@@ -94,7 +95,7 @@ export function Dashboard() {
               <th className="py-3 px-4 font-bold">Material</th>
               <th className="py-3 px-4 font-bold">Categoria</th>
               <th className="py-3 px-4 font-bold">Qtd</th>
-              <th className="py-3 px-4 font-bold">Responsável / Destino</th>
+              <th className="py-3 px-4 font-bold">Setor / Fornecedor</th>
             </tr>
           </thead>
           <tbody>
@@ -107,7 +108,9 @@ export function Dashboard() {
                   {m.tipo === 'ENTRADA' ? '+' : '-'}
                   {m.quantidade}
                 </td>
-                <td className="py-3 px-4 text-textoSuave">{m.setorDestino || m.fornecedor || '—'}</td>
+                <td className="py-3 px-4 text-textoSuave">
+                  <DestinoOuFornecedor m={m} />
+                </td>
               </tr>
             ))}
             {dados.ultimasMovimentacoes.length === 0 && (

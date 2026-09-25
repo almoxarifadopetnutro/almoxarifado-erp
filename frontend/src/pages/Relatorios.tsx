@@ -139,14 +139,14 @@ export function Relatorios() {
   function exportarExcel() {
     if (aba === 'movimentacoes') {
       exportarCSV('movimentacoes.csv', [
-        ['Data', 'Material', 'Categoria', 'Tipo', 'Quantidade', 'Detalhe', 'Registrado por'],
+        ['Data', 'Material', 'Categoria', 'Tipo', 'Quantidade', 'Setor / Fornecedor', 'Registrado por'],
         ...movimentacoes.map((m) => [
           new Date(m.data).toLocaleDateString('pt-BR'),
           m.material.nome,
           nomeCategoria(m.material.categoria),
           m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída',
           String(m.quantidade),
-          m.setorDestino || m.fornecedor || '',
+          m.setorDestino || m.fornecedor || (m.observacao === 'Estoque inicial' ? 'Estoque inicial' : ''),
           m.usuario.nome,
         ]),
       ]);

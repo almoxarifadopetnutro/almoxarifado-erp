@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { Material, Movimentacao, TipoMovimentacao } from '../types';
 import { SeletorMaterial } from '../components/SeletorMaterial';
 import { SeletorTexto } from '../components/SeletorTexto';
+import { DestinoOuFornecedor } from '../components/DestinoOuFornecedor';
 
 const SETORES = ['ADMINISTRATIVO', 'EXPEDIÇÃO NUTRO', 'EXPEDIÇÃO PETS', 'SERVIÇOS GERAIS', 'PRODUÇÃO', 'QUALIDADE'];
 
@@ -12,6 +13,7 @@ function hojeISO() {
 
 export function Movimentacoes() {
   const [materiais, setMateriais] = useState<Material[]>([]);
+  const [fornecedores, setFornecedores] = useState<string[]>([]);
   const [historico, setHistorico] = useState<Movimentacao[]>([]);
   const [tipo, setTipo] = useState<TipoMovimentacao>('ENTRADA');
   const [materialId, setMaterialId] = useState('');
@@ -50,7 +52,7 @@ export function Movimentacoes() {
     dataFimParam = filtroDataFim,
     produtoParam = filtroProduto
   ) {
-    const [resMateriais, resHistorico] = await Promise.all([
+    const [resMateriais, resHistorico, resFornecedores] = await Promise.all([
       api.get('/materiais'),
       api.get('/movimentacoes', {
         params: {
@@ -59,8 +61,10 @@ export function Movimentacoes() {
           ...(produtoParam ? { material: produtoParam } : {}),
         },
       }),
+      api.get('/movimentacoes/fornecedores').catch(() => ({ data: [] as string[] })),
     ]);
     setMateriais(resMateriais.data);
+    setFornecedores(resFornecedores.data);
     setHistorico(resHistorico.data);
     if (!materialId && resMateriais.data.length > 0) setMaterialId(resMateriais.data[0].id);
   }
@@ -231,11 +235,11 @@ export function Movimentacoes() {
         {tipo === 'ENTRADA' ? (
           <div className="col-span-2">
             <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Fornecedor</label>
-            <input
-              className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
-              placeholder="Ex: Higicel Distribuidora"
+            <SeletorTexto
+              opcoes={fornecedores}
               value={fornecedor}
-              onChange={(e) => setFornecedor(e.target.value)}
+              onChange={setFornecedor}
+              placeholder="Ex: Higicel Distribuidora"
             />
           </div>
         ) : (
@@ -341,7 +345,7 @@ export function Movimentacoes() {
               <th className="py-3 px-4 font-bold">Material</th>
               <th className="py-3 px-4 font-bold">Tipo</th>
               <th className="py-3 px-4 font-bold">Qtd</th>
-              <th className="py-3 px-4 font-bold">Setor</th>
+              <th className="py-3 px-4 font-bold">Setor / Fornecedor</th>
               <th className="py-3 px-4 font-bold">Registrado por</th>
               <th className="py-3 px-4 font-bold"></th>
             </tr>
@@ -357,7 +361,9 @@ export function Movimentacoes() {
                   </span>
                 </td>
                 <td className="py-3 px-4 font-mono text-texto">{m.quantidade}</td>
-                <td className="py-3 px-4 text-textoSuave">{m.setorDestino || m.fornecedor || '—'}</td>
+                <td className="py-3 px-4 text-textoSuave">
+                  <DestinoOuFornecedor m={m} />
+                </td>
                 <td className="py-3 px-4 text-textoSuave">{m.usuario.nome}</td>
                 <td className="py-3 px-4 text-right whitespace-nowrap">
                   <button
@@ -460,10 +466,10 @@ export function Movimentacoes() {
               {edTipo === 'ENTRADA' ? (
                 <div className="col-span-2">
                   <label className="text-[11.5px] font-bold text-textoSuave block mb-1">Fornecedor</label>
-                  <input
-                    className="w-full border border-linha rounded-lg px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/15"
+                  <SeletorTexto
+                    opcoes={fornecedores}
                     value={edFornecedor}
-                    onChange={(e) => setEdFornecedor(e.target.value)}
+                    onChange={setEdFornecedor}
                   />
                 </div>
               ) : (

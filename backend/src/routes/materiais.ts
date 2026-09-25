@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { autenticar, AuthRequest } from '../middleware/auth';
 import { registrar } from '../utils/registrar';
 import { gerarProximoCodigo } from '../utils/codigoMaterial';
+import { OBS_ESTOQUE_INICIAL, dataSaoPaulo, meioDia } from '../utils/datas';
 
 const router = Router();
 router.use(autenticar);
@@ -69,22 +70,43 @@ router.post(
 
     const codigo = await gerarProximoCodigo(categoria);
 
-    const material = await prisma.material.create({
-      data: {
-        codigo,
-        nome,
-        categoria,
-        unidade,
-        estoqueMinimo: estoqueMinimo ?? 0,
-        estoqueAtual: estoqueAtual ?? 0,
-      },
+    const qtdInicial = Number(estoqueAtual) > 0 ? Number(estoqueAtual) : 0;
+
+    // cria o material e, se houver estoque inicial, a Entrada correspondente — tudo junto,
+    // para o saldo nunca existir sem o registro no histórico de movimentações
+    const material = await prisma.$transaction(async (tx) => {
+      const criado = await tx.material.create({
+        data: {
+          codigo,
+          nome,
+          categoria,
+          unidade,
+          estoqueMinimo: estoqueMinimo ?? 0,
+          estoqueAtual: qtdInicial,
+        },
+      });
+
+      if (qtdInicial > 0) {
+        await tx.movimentacao.create({
+          data: {
+            tipo: 'ENTRADA',
+            quantidade: qtdInicial,
+            data: meioDia(dataSaoPaulo()),
+            observacao: OBS_ESTOQUE_INICIAL,
+            materialId: criado.id,
+            usuarioId: req.usuario!.id,
+          },
+        });
+      }
+
+      return criado;
     });
 
     await registrar({
       entidade: 'Material',
       entidadeId: material.id,
       acao: 'CRIACAO',
-      detalhes: `Material "${material.nome}" cadastrado (${codigo})`,
+      detalhes: `Material "${material.nome}" cadastrado (${codigo})${qtdInicial > 0 ? ` com estoque inicial de ${qtdInicial} ${material.unidade}` : ''}`,
       usuarioNome: req.usuario!.nome,
     });
 

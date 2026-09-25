@@ -59,6 +59,29 @@ router.get(
   })
 );
 
+// lista de fornecedores já usados em entradas — alimenta as sugestões do campo Fornecedor
+router.get(
+  '/fornecedores',
+  asyncHandler(async (_req, res) => {
+    const linhas = await prisma.movimentacao.findMany({
+      where: { tipo: 'ENTRADA', fornecedor: { not: null } },
+      select: { fornecedor: true },
+      distinct: ['fornecedor'],
+    });
+
+    // remove vazios e duplicados que só diferem em maiúsculas/espaços, e ordena A-Z
+    const vistos = new Map<string, string>();
+    for (const { fornecedor } of linhas) {
+      const nome = (fornecedor || '').trim();
+      if (!nome) continue;
+      const chave = nome.toLowerCase();
+      if (!vistos.has(chave)) vistos.set(chave, nome);
+    }
+
+    res.json([...vistos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  })
+);
+
 router.post(
   '/',
   asyncHandler(async (req: AuthRequest, res) => {
@@ -94,7 +117,7 @@ router.post(
           tipo,
           quantidade: qtd,
           data: parseDataLocal(data),
-          fornecedor: tipo === 'ENTRADA' ? fornecedor : null,
+          fornecedor: tipo === 'ENTRADA' ? (fornecedor ? String(fornecedor).trim() || null : null) : null,
           setorDestino: tipo === 'SAIDA' ? setorDestino : null,
           motivo: tipo === 'SAIDA' ? motivo : null,
           observacao,
@@ -150,7 +173,7 @@ router.put(
       materialId,
       quantidade: qtdNova,
       data: parseDataLocal(data),
-      fornecedor: tipo === 'ENTRADA' ? fornecedor : null,
+      fornecedor: tipo === 'ENTRADA' ? (fornecedor ? String(fornecedor).trim() || null : null) : null,
       setorDestino: tipo === 'SAIDA' ? setorDestino : null,
       motivo: tipo === 'SAIDA' ? motivo : null,
       observacao,

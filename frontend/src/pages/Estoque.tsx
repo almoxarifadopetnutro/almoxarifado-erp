@@ -385,6 +385,9 @@ export function Estoque() {
                     value={form.estoqueAtual}
                     onChange={(e) => setForm({ ...form, estoqueAtual: e.target.value })}
                   />
+                  {Number(form.estoqueAtual) > 0 && (
+                    <p className="text-[11px] font-semibold text-ok mt-1">↓ Gera uma Entrada no histórico</p>
+                  )}
                 </div>
               )}
             </div>
